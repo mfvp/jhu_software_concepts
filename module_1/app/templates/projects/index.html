@@ -7,31 +7,50 @@
     <h1>Projects</h1>
 </div>
 
-<div>
-    <h2>Module 1: Personal Website</h2>
+<div class="projects-layout">
 
-    <h3>Project Description</h3>
-    <p>
-        This assignment teaches the fundamentals of website construction. The goal is to build
-        a personal developer website that includes a biography, contact information and links,
-        and details about Python projects.
-    </p>
-    <p>
-        The project uses Flask, a micro web framework written in Python. It covers working
-        with HTML to structure content, and CSS (Cascading Style Sheets) to control how HTML
-        elements are displayed.
-    </p>
+    <div class="project-card">
+        <h2>Module 1: Personal Website </h2>
 
-    <h3>Skills</h3>
-    <ul>
-        <li>Flask: Python micro web framework</li>
-        <li>HTML: structuring web page content</li>
-        <li>CSS: styling and formatting HTML elements</li>
-    </ul>
+        <h3>Project Description</h3>
+        <p>
+            This assignment teaches the fundamentals of website construction. The goal is to build
+            a personal developer website that includes a biography, contact information and links,
+            and details about Python projects. It provides an opportunity to be creative while
+            learning the fundamentals of web development. The website will be updated throughout
+            the course as the set of Python projects grows.
+        </p>
+        <p>
+            The project uses Flask, a micro web framework written in Python. It covers working
+            with HTML to structure content, and CSS (Cascading Style Sheets) to control how HTML
+            elements are displayed. The output is a functional personal website with details about
+            the developer, their projects, and contact information.
+        </p>
 
-    <h3>How to Run</h3>
-    <p>Clone the repo, install with pip install -r requirements.txt, then run python run.py.</p>
+        <h3>Skills</h3>
+        <ul>
+            <li><strong>Flask</strong>: Python micro web framework for routing and serving pages</li>
+            <li><strong>HTML</strong>: structuring web page content</li>
+            <li><strong>CSS</strong>: styling and formatting HTML elements</li>
+            <li><strong>Searching Methods</strong>: techniques for locating and retrieving data</li>
+            <li><strong>Data Cleaning</strong>: processing and preparing raw data for use</li>
+            <li><strong>JSON Data Object Storage</strong>: storing and reading structured data in JSON format</li>
+        </ul>
 
-    <a href="https://github.com/mfvp/jhu_software_concepts" target="_blank">View on GitHub</a>
+        <h3>How to Run</h3>
+        <p>
+            Clone the repository, install dependencies with
+            <code>pip install -r requirements.txt</code>, then run
+            <code>python run.py</code>. The site will be available at
+            <code>http://localhost:8080</code> (open in your browser).
+        </p>
+
+        <a href="https://github.com/mfvp/jhu_software_concepts"
+           target="_blank"
+           class="github-link">
+            View on GitHub
+        </a>
+    </div>
+
 </div>
 {% endblock %}
