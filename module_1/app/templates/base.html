@@ -11,9 +11,12 @@
         <div>
             <span>Mateus Pereira</span>
             <nav>
-                <a href="{{ url_for('home.index') }}" class="nav-link">Home</a>
-                <a href="{{ url_for('contact.index') }}" class="nav-link">Contact</a>
-                <a href="{{ url_for('projects.index') }}" class="nav-link">Projects</a>
+                <a href="{{ url_for('home.index') }}"
+                   class="nav-link {% if request.endpoint == 'home.index' %}active{% endif %}">Home</a>
+                <a href="{{ url_for('contact.index') }}"
+                   class="nav-link {% if request.endpoint == 'contact.index' %}active{% endif %}">Contact</a>
+                <a href="{{ url_for('projects.index') }}"
+                   class="nav-link {% if request.endpoint == 'projects.index' %}active{% endif %}">Projects</a>
             </nav>
         </div>
     </header>
