@@ -7,37 +7,44 @@
     <h1>Welcome</h1>
 </div>
 
-<div>
-    <div>
+<div class="home-layout">
+
+    <div class="bio-section">
         <h2>Mateus F. V. Pereira</h2>
-        <p>Control Systems Research Engineer &mdash; GE Vernova | M.S. Artificial Intelligence Student &mdash; Johns Hopkins University</p>
+        <p class="position">Control Systems Research Engineer &mdash; GE Vernova &nbsp;|&nbsp; M.S. Artificial Intelligence Student &mdash; Johns Hopkins University</p>
 
         <h3>About Me</h3>
         <p>
             I am currently pursuing a Master's degree in Artificial Intelligence at Johns Hopkins
             University to deepen my knowledge in machine learning, deep learning, and data-driven
             methods, with a particular interest in exploring the intersection of AI and control
-            systems.
+            systems. My goal is to leverage modern AI techniques, such as reinforcement learning
+            and neural network-based modeling, to push the boundaries of what is possible in
+            advanced control design for complex engineering systems.
         </p>
         <p>
             I am a control systems engineer with several years of experience in control design
             applied to aerospace and energy systems. My areas of expertise include constrained
-            control for large-scale nonlinear systems, control of energy conversion systems
-            such as wind turbines, flight control design, and numerical optimization.
+            control for large-scale nonlinear systems, control of
+            energy conversion systems such as wind turbines, flight control design, and numerical optimization.
         </p>
         <p>
-            I hold a Ph.D. and M.Sc. in Aerospace Engineering from the University of Michigan.
+            I hold a Ph.D. and M.Sc. in Aerospace Engineering from the University of Michigan,
+            where my research focused on developing control architectures for large-scale
+            aerospace systems.
         </p>
         <p>
             At GE Vernova's Advanced Research Center, I design and deploy advanced control
-            solutions for onshore and offshore wind turbines and other energy systems.
+            solutions for onshore and offshore wind turbines and other energy systems. I also manage a team building generative AI
+            applications in the energy space.
         </p>
     </div>
 
-    <div>
+    <div class="image-section">
         <img src="{{ url_for('static', filename='images/profile.jpg') }}"
              alt="Mateus Pereira profile photo"
-             style="width: 250px; border-radius: 8px;">
+             class="profile-image">
     </div>
+
 </div>
 {% endblock %}

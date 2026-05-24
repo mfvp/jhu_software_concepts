@@ -57,3 +57,40 @@ main {
     max-width: 1200px;
     margin: 0 auto;
 }
+
+/* Home page layout - bio on left, image on right */
+.home-layout {
+    display: flex;
+    gap: 45px;
+    align-items: flex-start;
+}
+
+.bio-section {
+    flex: 1;
+}
+
+.bio-section h2 {
+    font-size: 1.8rem;
+    color: #1a2b4a;
+}
+
+.position {
+    color: #4a90d9;
+    font-size: 1.05rem;
+    margin-bottom: 20px;
+}
+
+.bio-section p {
+    line-height: 1.75;
+    color: #555;
+    margin-bottom: 12px;
+}
+
+.image-section {
+    flex: 0 0 270px;
+}
+
+.profile-image {
+    width: 100%;
+    border-radius: 10px;
+}
