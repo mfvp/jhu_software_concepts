@@ -10,12 +10,39 @@ header {
     background-color: #1a2b4a;
     color: white;
     padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-header a {
+header span {
+    font-size: 1.2rem;
+    font-weight: bold;
     color: white;
+}
+
+nav {
+    display: flex;
+    gap: 8px;
+}
+
+.nav-link {
     text-decoration: none;
-    margin-right: 15px;
+    color: #b0c8e8;
+    padding: 7px 16px;
+    border-radius: 4px;
+    font-size: 0.95rem;
+}
+
+.nav-link:hover {
+    background-color: #2d4a7a;
+    color: white;
+}
+
+.nav-link.active {
+    background-color: #4a90d9;
+    color: white;
+    font-weight: bold;
 }
 
 footer {
@@ -27,4 +54,6 @@ footer {
 
 main {
     padding: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
 }
