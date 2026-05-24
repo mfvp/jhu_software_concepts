@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Page title is set by each child template via the 'title' block -->
     <title>{% block title %}Portfolio{% endblock %} | Mateus Pereira</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -10,6 +11,12 @@
 
     <header>
         <div class="header-container">
+            <!--
+                Navigation bar positioned at top-right.
+                request.endpoint contains the current blueprint + function name (e.g. 'home.index').
+                We compare it to each link's endpoint to add the 'active' CSS class,
+                which visually highlights the tab the user is currently on.
+            -->
             <nav class="navbar">
                 <a href="{{ url_for('home.index') }}"
                    class="nav-link {% if request.endpoint == 'home.index' %}active{% endif %}">
@@ -27,13 +34,11 @@
         </div>
     </header>
 
+    <!-- Each child template fills this block with its unique content -->
     <main class="content">
         {% block content %}{% endblock %}
     </main>
 
-    <footer>
-        <p>Mateus Pereira &copy; 2025</p>
-    </footer>
 
 </body>
 </html>
