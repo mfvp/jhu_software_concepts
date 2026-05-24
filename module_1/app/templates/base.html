@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Portfolio{% endblock %} | Mateus Pereira</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <header>
         <div>
             <span>Mateus Pereira</span>
             <nav>
-                <a href="/">Home</a>
-                <a href="/contact">Contact</a>
-                <a href="/projects">Projects</a>
+                <a href="{{ url_for('home.index') }}" class="nav-link">Home</a>
+                <a href="{{ url_for('contact.index') }}" class="nav-link">Contact</a>
+                <a href="{{ url_for('projects.index') }}" class="nav-link">Projects</a>
             </nav>
         </div>
     </header>
