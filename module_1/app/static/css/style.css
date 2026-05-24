@@ -1,27 +1,35 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Arial, sans-serif;
     margin: 0;
     padding: 0;
     background-color: #f0f4f8;
     color: #333;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 header {
     background-color: #1a2b4a;
     color: white;
-    padding: 15px 30px;
+    padding: 14px 30px;
+}
+
+.header-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-header span {
-    font-size: 1.2rem;
+.site-title {
+    font-size: 1.4rem;
     font-weight: bold;
-    color: white;
+    color: #dce8f5;
 }
 
-nav {
+.navbar {
     display: flex;
     gap: 8px;
 }
@@ -32,33 +40,37 @@ nav {
     padding: 7px 16px;
     border-radius: 4px;
     font-size: 0.95rem;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .nav-link:hover {
     background-color: #2d4a7a;
-    color: white;
+    color: #ffffff;
 }
 
 .nav-link.active {
     background-color: #4a90d9;
-    color: white;
-    font-weight: bold;
+    color: #ffffff;
+    font-weight: 700;
 }
 
-footer {
-    background-color: #1a2b4a;
-    color: white;
-    text-align: center;
-    padding: 15px;
-}
-
-main {
-    padding: 30px;
+main.content {
+    flex: 1;
     max-width: 1200px;
-    margin: 0 auto;
+    margin: 40px auto;
+    padding: 0 30px;
+    width: 100%;
 }
 
-/* Home page layout - bio on left, image on right */
+.page-header h1 {
+    font-size: 2rem;
+    color: #1a2b4a;
+    margin-bottom: 30px;
+    padding-bottom: 10px;
+    border-bottom: 3px solid #4a90d9;
+}
+
+/* Home page layout */
 .home-layout {
     display: flex;
     gap: 45px;
@@ -72,18 +84,25 @@ main {
 .bio-section h2 {
     font-size: 1.8rem;
     color: #1a2b4a;
+    margin-bottom: 4px;
 }
 
 .position {
     color: #4a90d9;
     font-size: 1.05rem;
-    margin-bottom: 20px;
+    margin-bottom: 22px;
+}
+
+.bio-section h3 {
+    margin-top: 18px;
+    margin-bottom: 8px;
+    color: #1a2b4a;
 }
 
 .bio-section p {
     line-height: 1.75;
     color: #555;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 .image-section {
@@ -93,4 +112,119 @@ main {
 .profile-image {
     width: 100%;
     border-radius: 10px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+}
+
+/* Contact page */
+.contact-card {
+    background: #ffffff;
+    padding: 35px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    max-width: 620px;
+}
+
+.contact-card h2 {
+    font-size: 1.4rem;
+    color: #1a2b4a;
+    margin-bottom: 18px;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid #eee;
+    gap: 16px;
+}
+
+.contact-item:last-child {
+    border-bottom: none;
+}
+
+.contact-label {
+    font-weight: 700;
+    color: #1a2b4a;
+    min-width: 100px;
+    font-size: 0.95rem;
+}
+
+.contact-item a {
+    color: #4a90d9;
+    text-decoration: none;
+}
+
+.contact-item a:hover {
+    text-decoration: underline;
+}
+
+/* Projects page */
+.project-card {
+    background: #ffffff;
+    padding: 35px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.project-card h2 {
+    font-size: 1.5rem;
+    color: #1a2b4a;
+    margin-bottom: 6px;
+}
+
+.project-card h3 {
+    margin-top: 22px;
+    margin-bottom: 10px;
+    color: #1a2b4a;
+    font-size: 1.05rem;
+}
+
+.project-card p {
+    line-height: 1.75;
+    color: #555;
+    margin-bottom: 14px;
+}
+
+.project-card ul {
+    padding-left: 22px;
+    margin-bottom: 20px;
+}
+
+.project-card li {
+    line-height: 1.85;
+    color: #555;
+    margin-bottom: 6px;
+}
+
+.project-card code {
+    background: #eef3f9;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #1a2b4a;
+}
+
+.github-link {
+    display: inline-block;
+    background-color: #1a2b4a;
+    color: #ffffff;
+    padding: 10px 24px;
+    border-radius: 5px;
+    text-decoration: none;
+    margin-top: 12px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.github-link:hover {
+    background-color: #4a90d9;
+}
+
+/* Footer */
+footer {
+    background-color: #1a2b4a;
+    color: #8aaac8;
+    text-align: center;
+    padding: 14px;
+    font-size: 0.82rem;
 }
