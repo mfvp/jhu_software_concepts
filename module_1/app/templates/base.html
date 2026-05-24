@@ -7,26 +7,33 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+
     <header>
-        <div>
-            <span>Mateus Pereira</span>
-            <nav>
+        <div class="header-container">
+            <nav class="navbar">
                 <a href="{{ url_for('home.index') }}"
-                   class="nav-link {% if request.endpoint == 'home.index' %}active{% endif %}">Home</a>
+                   class="nav-link {% if request.endpoint == 'home.index' %}active{% endif %}">
+                    Home
+                </a>
                 <a href="{{ url_for('contact.index') }}"
-                   class="nav-link {% if request.endpoint == 'contact.index' %}active{% endif %}">Contact</a>
+                   class="nav-link {% if request.endpoint == 'contact.index' %}active{% endif %}">
+                    Contact
+                </a>
                 <a href="{{ url_for('projects.index') }}"
-                   class="nav-link {% if request.endpoint == 'projects.index' %}active{% endif %}">Projects</a>
+                   class="nav-link {% if request.endpoint == 'projects.index' %}active{% endif %}">
+                    Projects
+                </a>
             </nav>
         </div>
     </header>
 
-    <main>
+    <main class="content">
         {% block content %}{% endblock %}
     </main>
 
     <footer>
         <p>Mateus Pereira &copy; 2025</p>
     </footer>
+
 </body>
 </html>
