@@ -6,5 +6,9 @@ app = Flask(__name__, template_folder='app/templates')
 def home():
     return render_template('home/index.html')
 
+@app.route('/contact')
+def contact():
+    return render_template('contact/index.html')
+
 if __name__ == '__main__':
     app.run(debug=True)
