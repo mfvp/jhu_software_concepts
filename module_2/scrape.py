@@ -7,6 +7,16 @@ import urllib.robotparser
 import urllib.parse
 import urllib.request
 import logging
+import time
+import random
+
+# selenium for rendering the javascript on the page
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 # the base url and survey url for grad cafe
 BASE_URL = "https://www.thegradcafe.com"
@@ -48,6 +58,41 @@ def _check_robots_txt(url):
         # if we can't read robots.txt for some reason, play it safe and don't scrape
         logger.error(f"Could not read robots.txt from {ROBOTS_URL}: {e}")
         return False
+
+
+# how long to wait between requests in seconds - we want to be polite!
+MIN_DELAY = 2.5
+MAX_DELAY = 5.5
+
+
+def _setup_driver():
+    """
+    Set up a headless Chrome browser for selenium.
+    Headless means it runs in the background with no window - perfect for scraping.
+    Selenium Manager (included in selenium 4+) handles downloading chromedriver automatically.
+    """
+    options = Options()
+
+    # run in the background with no visible browser window
+    options.add_argument("--headless=new")
+
+    # these are needed to avoid some common errors
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+
+    # set a user agent so we look like a normal browser and not a bot
+    options.add_argument(
+        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    )
+
+    # selenium manager automatically downloads the correct chromedriver
+    driver = webdriver.Chrome(options=options)
+    logger.info("Chrome driver initialized (headless mode)")
+    return driver
 
 
 def _build_page_url(page_num, query=""):
