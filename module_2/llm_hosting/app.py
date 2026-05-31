@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Flask + tiny local LLM standardizer with incremental JSONL CLI output."""
+"""Flask + tiny local LLM standardizer with incremental JSONL CLI output.
+
+Modified for Module 2 assignment:
+- Added threading for parallel row processing
+- Expanded abbreviation maps with common Grad Cafe abbreviations
+- Added --workers CLI argument
+"""
 
 from __future__ import annotations
 
@@ -8,6 +14,8 @@ import os
 import re
 import sys
 import difflib
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Tuple
 
 from flask import Flask, jsonify, request
@@ -29,6 +37,8 @@ MODEL_FILE = os.getenv(
 N_THREADS = int(os.getenv("N_THREADS", str(os.cpu_count() or 2)))
 N_CTX = int(os.getenv("N_CTX", "2048"))
 N_GPU_LAYERS = int(os.getenv("N_GPU_LAYERS", "0"))  # 0 → CPU-only
+# Number of parallel worker threads for CLI processing (default = cpu count)
+N_WORKERS = int(os.getenv("N_WORKERS", str(max(1, os.cpu_count() or 2))))
 
 CANON_UNIS_PATH = os.getenv("CANON_UNIS_PATH", "canon_universities.txt")
 CANON_PROGS_PATH = os.getenv("CANON_PROGS_PATH", "canon_programs.txt")
@@ -53,6 +63,23 @@ ABBREV_UNI: Dict[str, str] = {
     r"(?i)^mcg(\.|ill)?$": "McGill University",
     r"(?i)^(ubc|u\.?b\.?c\.?)$": "University of British Columbia",
     r"(?i)^uoft$": "University of Toronto",
+    # added common Grad Cafe abbreviations
+    r"(?i)^jhu$": "Johns Hopkins University",
+    r"(?i)^mit$": "Massachusetts Institute of Technology",
+    r"(?i)^(cmu|carnegie\s*mellon)$": "Carnegie Mellon University",
+    r"(?i)^(uiuc|u\.?i\.?u\.?c\.?)$": "University of Illinois Urbana-Champaign",
+    r"(?i)^(umich|u\.?\s*of\s*michigan)$": "University of Michigan, Ann Arbor",
+    r"(?i)^(unc|u\.?n\.?c\.?)$": "University of North Carolina at Chapel Hill",
+    r"(?i)^(ut\s*austin|u\.?\s*texas)$": "University of Texas at Austin",
+    r"(?i)^(ucla|u\.?c\.?\s*la)$": "University of California, Los Angeles",
+    r"(?i)^(ucb|uc\s*berkeley|u\.?c\.?\s*berkeley)$": "University of California, Berkeley",
+    r"(?i)^(ucsd|uc\s*san\s*diego)$": "University of California, San Diego",
+    r"(?i)^(usc|u\.?s\.?c\.?)$": "University of Southern California",
+    r"(?i)^(nyu|n\.?y\.?u\.?)$": "New York University",
+    r"(?i)^(gatech|georgia\s*tech)$": "Georgia Institute of Technology",
+    r"(?i)^(upenn|u\.?\s*penn)$": "University of Pennsylvania",
+    r"(?i)^(bu|boston\s*u\.?)$": "Boston University",
+    r"(?i)^(psu|penn\s*state)$": "Pennsylvania State University",
 }
 
 COMMON_UNI_FIXES: Dict[str, str] = {
@@ -111,6 +138,8 @@ FEW_SHOTS: List[Tuple[Dict[str, str], Dict[str, str]]] = [
 ]
 
 _LLM: Llama | None = None
+# Lock so multiple threads don't call the model at the same time (not thread-safe)
+_LLM_LOCK: threading.Lock = threading.Lock()
 
 
 def _load_llm() -> Llama:
@@ -206,9 +235,12 @@ def _post_normalize_university(uni: str) -> str:
 
 
 def _call_llm(program_text: str) -> Dict[str, str]:
-    """Query the tiny LLM and return standardized fields."""
-    llm = _load_llm()
+    """Query the tiny LLM and return standardized fields (thread-safe via lock).
 
+    Message building is done outside the lock (pure Python, no shared state).
+    Only model load + inference is serialized so threads don't corrupt llama.cpp.
+    """
+    # build the chat messages outside the lock - this is just Python list ops
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     for x_in, x_out in FEW_SHOTS:
         messages.append(
@@ -227,12 +259,15 @@ def _call_llm(program_text: str) -> Dict[str, str]:
         }
     )
 
-    out = llm.create_chat_completion(
-        messages=messages,
-        temperature=0.0,
-        max_tokens=128,
-        top_p=1.0,
-    )
+    # serialize model load + inference - llama_cpp is not thread-safe
+    with _LLM_LOCK:
+        llm = _load_llm()
+        out = llm.create_chat_completion(
+            messages=messages,
+            temperature=0.0,
+            max_tokens=128,
+            top_p=1.0,
+        )
 
     text = (out["choices"][0]["message"]["content"] or "").strip()
     try:
@@ -283,13 +318,29 @@ def standardize() -> Any:
     return jsonify({"rows": out})
 
 
+def _process_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Enrich one row with LLM-generated fields. Used by the thread pool."""
+    program_text = (row or {}).get("program") or ""
+    result = _call_llm(program_text)
+    row["llm-generated-program"] = result["standardized_program"]
+    row["llm-generated-university"] = result["standardized_university"]
+    return row
+
+
 def _cli_process_file(
     in_path: str,
     out_path: str | None,
     append: bool,
     to_stdout: bool,
+    n_workers: int = 1,
 ) -> None:
-    """Process a JSON file and write JSONL incrementally."""
+    """Process a JSON file and write JSONL incrementally.
+
+    When n_workers > 1, rows are dispatched to a ThreadPoolExecutor so that
+    I/O and message-building overlap even though inference is serialised by
+    _LLM_LOCK. Output is written in completion order (not input order) which
+    is fine for downstream analysis but preserves all records.
+    """
     with open(in_path, "r", encoding="utf-8") as f:
         rows = _normalize_input(json.load(f))
 
@@ -300,17 +351,25 @@ def _cli_process_file(
         sink = open(out_path, mode, encoding="utf-8")
 
     assert sink is not None  # for type-checkers
+    # protect the output stream when multiple threads write concurrently
+    sink_lock = threading.Lock()
 
-    try:
-        for row in rows:
-            program_text = (row or {}).get("program") or ""
-            result = _call_llm(program_text)
-            row["llm-generated-program"] = result["standardized_program"]
-            row["llm-generated-university"] = result["standardized_university"]
-
+    def _write(row: Dict[str, Any]) -> None:
+        with sink_lock:
             json.dump(row, sink, ensure_ascii=False)
             sink.write("\n")
             sink.flush()
+
+    try:
+        if n_workers <= 1:
+            # simple sequential path (original behaviour)
+            for row in rows:
+                _write(_process_row(row))
+        else:
+            with ThreadPoolExecutor(max_workers=n_workers) as pool:
+                futures = [pool.submit(_process_row, row) for row in rows]
+                for fut in as_completed(futures):
+                    _write(fut.result())
     finally:
         if sink is not sys.stdout:
             sink.close()
@@ -348,6 +407,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Write JSON Lines to stdout instead of a file.",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=N_WORKERS,
+        help=f"Number of parallel worker threads (default: {N_WORKERS} = cpu count).",
+    )
     args = parser.parse_args()
 
     if args.serve or args.file is None:
@@ -359,4 +424,5 @@ if __name__ == "__main__":
             out_path=args.out,
             append=bool(args.append),
             to_stdout=bool(args.stdout),
+            n_workers=args.workers,
         )
