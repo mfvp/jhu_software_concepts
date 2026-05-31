@@ -50,8 +50,51 @@ def _check_robots_txt(url):
         return False
 
 
+def _build_page_url(page_num, query=""):
+    """
+    Build the URL for a specific page of grad cafe survey results.
+    Using urllib.parse to properly encode the query parameters.
+    Example: page 5 becomes https://www.thegradcafe.com/survey/?page=5
+    """
+    # put the page number into a dict so urllib can encode it properly
+    params = {"page": page_num}
+
+    # if we have a search query (like filtering by program) add it too
+    if query:
+        params["q"] = query
+
+    # encode the params dict into a url query string
+    query_string = urllib.parse.urlencode(params)
+
+    # combine the base survey url with the query string
+    full_url = f"{SURVEY_URL}?{query_string}"
+    return full_url
+
+
+def _parse_result_id_from_url(url):
+    """
+    Extract the numeric result id from a grad cafe result url.
+    Example: https://www.thegradcafe.com/result/935454 -> 935454
+    """
+    if not url:
+        return None
+    # look for /result/ followed by digits
+    match = urllib.parse.urlparse(url)
+    parts = match.path.strip("/").split("/")
+    # the last part should be the id number
+    for part in reversed(parts):
+        if part.isdigit():
+            return int(part)
+    return None
+
+
 # quick test to make sure the robots check works
 if __name__ == "__main__":
     print("Checking if Grad Cafe survey is allowed by robots.txt...")
     allowed = _check_robots_txt(SURVEY_URL)
     print(f"Result: {'ALLOWED' if allowed else 'NOT ALLOWED'}")
+
+    # test url building
+    print("\nTest URL building:")
+    for page in [1, 2, 100]:
+        print(f"  Page {page}: {_build_page_url(page)}")
