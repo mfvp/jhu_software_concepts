@@ -247,9 +247,21 @@ def clean_data(data):
     return cleaned
 
 
+def run_cleaning_pipeline(input_file="applicant_data.json", output_file="applicant_data.json"):
+    """
+    Run the full cleaning pipeline on a JSON file.
+    Loads raw scraped data, cleans it, and saves the result.
+    """
+    raw = load_data(input_file)
+    if not raw:
+        logger.error("No data loaded - is the input file correct?")
+        return []
+    cleaned = clean_data(raw)
+    save_data(cleaned, output_file)
+    return cleaned
+
+
 if __name__ == "__main__":
     print("Running cleaning pipeline...")
-    raw = load_data("applicant_data.json")
-    cleaned = clean_data(raw)
-    save_data(cleaned, "applicant_data.json")
-    print(f"Done! Cleaned {len(cleaned)} entries.")
+    result = run_cleaning_pipeline()
+    print(f"Done! Cleaned {len(result)} entries.")
