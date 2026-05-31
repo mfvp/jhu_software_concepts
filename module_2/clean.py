@@ -42,6 +42,161 @@ def save_data(data, filename="applicant_data.json"):
     logger.info(f"Saved {len(data)} entries to {path}")
 
 
-# TODO: add cleaning functions
+def _strip_html(text):
+    """
+    Remove any leftover HTML tags and decode HTML entities.
+    For example: "&amp;" becomes "&", "&lt;" becomes "<", etc.
+    Sometimes comments on Grad Cafe have HTML in them.
+    """
+    if text is None:
+        return None
+    # remove html tags with regex
+    cleaned = re.sub(r'<[^>]+>', '', str(text))
+    # decode html entities like &amp; &lt; etc.
+    cleaned = html.unescape(cleaned)
+    # collapse multiple spaces/newlines into a single space
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned if cleaned else None
+
+
+def _normalize_none(value):
+    """
+    Turn "null-like" strings into actual Python None.
+    Grad Cafe sometimes has "N/A", "--", or empty strings where data is missing.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    # list of strings that all mean "no data"
+    null_like = {"", "n/a", "na", "none", "--", "-", "null", "undefined", "?", "unknown"}
+    if text.lower() in null_like:
+        return None
+    return text
+
+
+def _clean_text(text):
+    """Strip HTML and handle null values for a generic text field."""
+    return _normalize_none(_strip_html(text))
+
+
+def _clean_status(status):
+    """Normalize status strings to consistent values."""
+    if not status:
+        return None
+    s = status.lower().strip()
+    if "accept" in s:
+        return "Accepted"
+    elif "reject" in s:
+        return "Rejected"
+    elif "waitlist" in s or "wait list" in s:
+        return "Waitlisted"
+    elif "interview" in s:
+        return "Interview"
+    return _normalize_none(status)
+
+
+def _clean_degree(degree):
+    """Normalize degree to 'Masters' or 'PhD'."""
+    if not degree:
+        return None
+    d = degree.lower().strip()
+    if re.search(r'\bphd\b|ph\.d|doctorate|doctoral', d):
+        return "PhD"
+    elif re.search(r'\bms\b|m\.s\.|master|meng|mba|mfa|mpa|mpp', d):
+        return "Masters"
+    return _normalize_none(degree)
+
+
+def _ensure_fields(entry):
+    """Make sure every entry has all expected fields (set to None if missing)."""
+    for field in EXPECTED_FIELDS:
+        if field not in entry:
+            entry[field] = None
+    return entry
+
+
+def _clean_entry(entry):
+    """
+    Clean a single applicant entry dictionary.
+    Returns a new dict with cleaned values.
+    """
+    c = {}
+
+    # always keep the original program text! needed for reproducibility
+    c["program"] = _clean_text(entry.get("program"))
+
+    # clean all the text fields
+    c["program_name"] = _clean_text(entry.get("program_name"))
+    c["university"] = _clean_text(entry.get("university"))
+    c["comments"] = _clean_text(entry.get("comments"))
+    c["url"] = _normalize_none(entry.get("url"))
+    c["date_added"] = _normalize_none(entry.get("date_added"))
+    c["decision_date"] = _normalize_none(entry.get("decision_date"))
+
+    # normalized fields
+    c["status"] = _clean_status(entry.get("status"))
+    c["degree"] = _clean_degree(entry.get("degree"))
+    c["semester"] = _normalize_none(entry.get("semester"))
+
+    # year should be an integer
+    year = entry.get("year")
+    if year is not None:
+        try:
+            y = int(year)
+            c["year"] = y if 2000 <= y <= 2035 else None
+        except (ValueError, TypeError):
+            c["year"] = None
+    else:
+        c["year"] = None
+
+    # applicant type
+    at = _normalize_none(entry.get("applicant_type"))
+    if at:
+        at_l = at.lower()
+        if "international" in at_l:
+            c["applicant_type"] = "International"
+        elif "american" in at_l or "domestic" in at_l or "u.s" in at_l:
+            c["applicant_type"] = "American"
+        else:
+            c["applicant_type"] = at
+    else:
+        c["applicant_type"] = None
+
+    # numeric scores - will add validation in a second
+    c["gpa"] = entry.get("gpa")
+    c["gre_total"] = entry.get("gre_total")
+    c["gre_v"] = entry.get("gre_v")
+    c["gre_aw"] = entry.get("gre_aw")
+
+    return _ensure_fields(c)
+
+
+def clean_data(data):
+    """
+    Clean all entries in the dataset.
+    Returns a new list with cleaned data, skipping completely empty entries.
+    """
+    logger.info(f"Cleaning {len(data)} entries...")
+    cleaned = []
+    skipped = 0
+    for i, entry in enumerate(data):
+        try:
+            c = _clean_entry(entry)
+            # skip entries with absolutely no useful data
+            if not c.get("program") and not c.get("url"):
+                skipped += 1
+                continue
+            cleaned.append(c)
+        except Exception as e:
+            logger.warning(f"Error cleaning entry {i}: {e}")
+            skipped += 1
+    logger.info(f"Done. Kept {len(cleaned)} entries, skipped {skipped}.")
+    return cleaned
+
+
 if __name__ == "__main__":
-    print("clean.py placeholder - cleaning functions coming soon")
+    print("Running cleaning pipeline...")
+    raw = load_data("applicant_data.json")
+    cleaned = clean_data(raw)
+    save_data(cleaned, "applicant_data.json")
+    print(f"Done! Cleaned {len(cleaned)} entries.")
