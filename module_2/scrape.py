@@ -291,17 +291,26 @@ def _parse_entry(row_elem, col_headers=None):
                 entry["url"] = href
 
         # --- program field (usually in first cell or a cell with a link) ---
+        # try named cells first, then fall back to the cell containing the result link
         prog_cell = (
             cell_map.get("program") or
             cell_map.get("institution") or
             cell_map.get("school") or
-            (row_elem.find("a", href=re.compile(r'/result/')) or None)
+            None
         )
+        # if we didn't find it by name, use the cell that contains the result link
+        if prog_cell is None and link:
+            prog_cell = link.find_parent("td") or link.find_parent("div")
+        # also try the first non-empty td as last resort
+        if prog_cell is None and cells:
+            prog_cell = cells[0]
+
         if prog_cell:
             raw_prog = prog_cell.get_text(separator=" ", strip=True)
-            # always keep the original raw text
-            entry["program"] = raw_prog
-            entry["program_name"], entry["university"] = _split_program_university(raw_prog)
+            # always keep the original raw text! important for traceability
+            entry["program"] = raw_prog if raw_prog else None
+            if raw_prog:
+                entry["program_name"], entry["university"] = _split_program_university(raw_prog)
 
         # --- degree type ---
         degree_cell = cell_map.get("degree") or cell_map.get("type")
