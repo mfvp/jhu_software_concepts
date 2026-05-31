@@ -450,6 +450,34 @@ if __name__ == "__main__":
         print(f"  Page {page}: {_build_page_url(page)}")
 
 
+def save_data(data, filename="applicant_data.json"):
+    """
+    Save a list of applicant dicts to a JSON file.
+    The file is saved in the same directory as this script.
+    """
+    output_path = Path(__file__).parent / filename
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    logger.info(f"Saved {len(data)} entries to {output_path}")
+
+
+def load_data(filename="applicant_data.json"):
+    """
+    Load applicant data from a JSON file.
+    Returns an empty list if the file doesn't exist.
+    """
+    input_path = Path(__file__).parent / filename
+    if not input_path.exists():
+        logger.warning(f"File not found: {input_path}")
+        return []
+
+    with open(input_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    logger.info(f"Loaded {len(data)} entries from {input_path}")
+    return data
+
+
 def _get_column_headers(soup):
     """
     Find and return the column header names from the survey results table.
