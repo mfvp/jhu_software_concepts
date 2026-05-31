@@ -12,8 +12,7 @@ Run this file directly to perform a full scrape:
 
 Outputs: applicant_data.json  +  screenshot.jpg (robots.txt evidence)
 """
-# I'm still learning Python so I tried to add helpful comments throughout
-
+# dependencies
 import urllib.robotparser
 import urllib.parse
 import urllib.request
