@@ -76,7 +76,7 @@ def _check_robots_txt(url):
         return False
 
 
-# how long to wait between requests in seconds - we want to be polite!
+# how long to wait between requests in seconds
 MIN_DELAY = 2.5
 MAX_DELAY = 5.5
 
@@ -464,25 +464,6 @@ def _log_progress(page_num, all_entries, start_time):
     )
 
 
-# run the scraper when executed directly
-if __name__ == "__main__":
-    import time as time_module
-
-    print("=== Grad Cafe Scraper ===")
-    print("Checking robots.txt first...")
-    if not _check_robots_txt(SURVEY_URL):
-        print("ERROR: robots.txt says we cannot scrape. Stopping.")
-        exit(1)
-    print("robots.txt check passed!\n")
-
-    start = time_module.time()
-    print("Starting scrape... this will take a while (there are a LOT of pages)")
-    results = scrape_data(max_pages=900, output_file="applicant_data.json")
-    elapsed = time_module.time() - start
-    print(f"\nDone! Scraped {len(results)} entries in {elapsed/60:.1f} minutes.")
-    print("Data saved to applicant_data.json")
-
-
 def save_data(data, filename="applicant_data.json"):
     """
     Save a list of applicant dicts to a JSON file.
@@ -713,3 +694,22 @@ def scrape_data(max_pages=900, output_file="applicant_data.json"):
     logger.info(f"Scraping done! Total entries collected: {len(all_entries)}")
     save_data(all_entries, output_file)
     return all_entries
+
+
+# run the scraper when executed directly
+if __name__ == "__main__":
+    import time as time_module
+
+    print("=== Grad Cafe Scraper ===")
+    print("Checking robots.txt first...")
+    if not _check_robots_txt(SURVEY_URL):
+        print("ERROR: robots.txt says we cannot scrape. Stopping.")
+        exit(1)
+    print("robots.txt check passed!\n")
+
+    start = time_module.time()
+    print("Starting scrape... this will take a while (there are a LOT of pages)")
+    results = scrape_data(max_pages=900, output_file="applicant_data.json")
+    elapsed = time_module.time() - start
+    print(f"\nDone! Scraped {len(results)} entries in {elapsed/60:.1f} minutes.")
+    print("Data saved to applicant_data.json")
