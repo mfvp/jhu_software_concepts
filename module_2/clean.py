@@ -1,6 +1,15 @@
-# clean.py
-# This module handles cleaning the raw scraped data from Grad Cafe.
-# The data comes out pretty messy from the scraper so this fixes it up.
+"""
+clean.py  -  Data Cleaning for Grad Cafe Applicant Data
+Module 2 / JHU Software Concepts in Python
+
+Reads applicant_data.json (produced by scrape.py), applies cleaning/validation
+to every field, and writes the result back to the same file (or a new one).
+
+Run directly:
+    python clean.py
+"""
+# this module handles cleaning the raw scraped data from Grad Cafe
+# the data comes out pretty messy from the scraper so this fixes it up
 
 import json
 import re

@@ -1,7 +1,18 @@
-# scrape.py
-# This is my web scraper for Grad Cafe
-# I'm still learning Python so bear with me on the comments :)
-# I'm using urllib to check/build URLs and selenium to load the JS-rendered pages
+"""
+scrape.py  -  Grad Cafe Web Scraper
+Module 2 / JHU Software Concepts in Python
+
+Hybrid scraping workflow:
+  1. urllib  - constructs and inspects all URLs; checks robots.txt
+  2. Selenium - loads each page in headless Chrome (needed for React JS rendering)
+  3. BeautifulSoup - parses the rendered HTML to extract applicant entries
+
+Run this file directly to perform a full scrape:
+    python scrape.py
+
+Outputs: applicant_data.json  +  screenshot.jpg (robots.txt evidence)
+"""
+# I'm still learning Python so I tried to add helpful comments throughout
 
 import urllib.robotparser
 import urllib.parse
