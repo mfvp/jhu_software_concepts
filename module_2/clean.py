@@ -107,6 +107,53 @@ def _clean_degree(degree):
     return _normalize_none(degree)
 
 
+def _validate_gpa(gpa):
+    """
+    Make sure GPA is a valid float in a realistic range (0.0 - 4.5).
+    Some schools use a 4.3 scale so we give a bit of slack.
+    """
+    if gpa is None:
+        return None
+    try:
+        val = float(gpa)
+        if 0.0 <= val <= 4.5:
+            return round(val, 2)
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
+def _validate_gre(score, min_val=130, max_val=340):
+    """
+    Validate a GRE score is within expected range.
+    Total score: 260-340. Individual section: 130-170.
+    """
+    if score is None:
+        return None
+    try:
+        val = int(float(score))
+        if min_val <= val <= max_val:
+            return val
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
+def _validate_gre_aw(score):
+    """
+    GRE Analytical Writing scores go 0.0 to 6.0 in 0.5 steps.
+    """
+    if score is None:
+        return None
+    try:
+        val = float(score)
+        if 0.0 <= val <= 6.0:
+            return round(val, 1)
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
 def _ensure_fields(entry):
     """Make sure every entry has all expected fields (set to None if missing)."""
     for field in EXPECTED_FIELDS:
@@ -162,11 +209,11 @@ def _clean_entry(entry):
     else:
         c["applicant_type"] = None
 
-    # numeric scores - will add validation in a second
-    c["gpa"] = entry.get("gpa")
-    c["gre_total"] = entry.get("gre_total")
-    c["gre_v"] = entry.get("gre_v")
-    c["gre_aw"] = entry.get("gre_aw")
+    # numeric scores - validated with range checks
+    c["gpa"] = _validate_gpa(entry.get("gpa"))
+    c["gre_total"] = _validate_gre(entry.get("gre_total"), min_val=260, max_val=340)
+    c["gre_v"] = _validate_gre(entry.get("gre_v"), min_val=130, max_val=170)
+    c["gre_aw"] = _validate_gre_aw(entry.get("gre_aw"))
 
     return _ensure_fields(c)
 
