@@ -10,6 +10,3 @@ lxml>=4.9.0
 
 # for http requests and url handling (usually comes with Python but listing anyway)
 urllib3>=2.0.0
-
-# image creation for the robots.txt screenshot
-Pillow>=10.0.0
