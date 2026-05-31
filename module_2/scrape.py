@@ -448,3 +448,192 @@ if __name__ == "__main__":
     print("\nTest URL building:")
     for page in [1, 2, 100]:
         print(f"  Page {page}: {_build_page_url(page)}")
+
+
+def _get_column_headers(soup):
+    """
+    Find and return the column header names from the survey results table.
+    This helps us understand which column contains which data field.
+    Returns a list of lowercase header strings.
+    """
+    # look for thead element first
+    thead = soup.find("thead")
+    if thead:
+        headers = [th.get_text(strip=True).lower() for th in thead.find_all(["th", "td"])]
+        if headers:
+            logger.debug(f"Found column headers: {headers}")
+            return headers
+
+    # if no thead, look for the first row and see if it looks like headers
+    first_row = soup.find("tr")
+    if first_row:
+        cells = first_row.find_all(["th"])
+        if cells:
+            return [c.get_text(strip=True).lower() for c in cells]
+
+    return []
+
+
+def _get_result_rows(soup):
+    """
+    Find all the applicant result rows in the rendered page HTML.
+    This tries a bunch of different ways to find the rows.
+    Returns a list of BeautifulSoup elements.
+    """
+    # first try to find a proper table with tbody rows
+    tbody = soup.find("tbody")
+    if tbody:
+        rows = tbody.find_all("tr")
+        if rows:
+            logger.debug(f"Found {len(rows)} rows in tbody")
+            return rows
+
+    # try any table rows that have enough cells to be data rows (at least 4 cols)
+    all_rows = soup.find_all("tr")
+    data_rows = [r for r in all_rows if len(r.find_all(["td"])) >= 4]
+    if data_rows:
+        logger.debug(f"Found {len(data_rows)} data rows by cell count")
+        return data_rows
+
+    # try div-based layout - look for divs that contain result links
+    result_containers = soup.find_all(lambda tag: (
+        tag.name in ["div", "li", "article"] and
+        tag.find("a", href=re.compile(r'/result/\d+'))
+    ))
+    if result_containers:
+        logger.debug(f"Found {len(result_containers)} result containers")
+        return result_containers
+
+    return []
+
+
+def scrape_data(max_pages=900, output_file="applicant_data.json"):
+    """
+    Main scraping function - pulls applicant data from Grad Cafe.
+    Loops through paginated survey results pages and saves everything.
+
+    Uses: urllib to build URLs, Selenium to render the JS, BeautifulSoup to parse HTML.
+
+    Args:
+        max_pages: max number of pages to try (safety limit)
+        output_file: name of the JSON file to save data to
+    """
+    # first check that robots.txt says we can scrape
+    test_url = _build_page_url(1)
+    if not _check_robots_txt(test_url):
+        logger.error("robots.txt says we cannot scrape! Stopping.")
+        return []
+
+    logger.info("robots.txt check passed. Starting scrape...")
+
+    all_entries = []
+    driver = _setup_driver()
+
+    try:
+        # step 1: take a screenshot of the robots.txt page as evidence
+        _take_robots_screenshot(driver)
+
+        page_num = 1
+        consecutive_empty_pages = 0
+        max_empty_pages = 3  # stop after 3 pages in a row with no data
+
+        while page_num <= max_pages:
+            url = _build_page_url(page_num)
+            logger.info(f"Scraping page {page_num}: {url}")
+
+            try:
+                # load the page with selenium
+                driver.get(url)
+
+                # wait for actual results to appear - we look for table rows or result links
+                # this is an EXPLICIT WAIT which is better than just sleeping
+                try:
+                    WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located((
+                            By.CSS_SELECTOR,
+                            "tbody tr, table tr td, a[href*='/result/']"
+                        ))
+                    )
+                except TimeoutException:
+                    logger.warning(f"Page {page_num}: timed out waiting for results")
+                    consecutive_empty_pages += 1
+                    if consecutive_empty_pages >= max_empty_pages:
+                        logger.info("Too many empty pages in a row. Scraping complete!")
+                        break
+                    # wait a bit longer before trying next page
+                    time.sleep(random.uniform(5, 10))
+                    page_num += 1
+                    continue
+
+                # get the fully rendered html and parse it with beautifulsoup
+                page_html = driver.page_source
+                soup = BeautifulSoup(page_html, "lxml")
+
+                # check if the page has a "no results" or "end of data" message
+                page_text = soup.get_text().lower()
+                if "no results" in page_text or "page not found" in page_text:
+                    logger.info(f"Page {page_num}: no results found, probably the last page")
+                    consecutive_empty_pages += 1
+                    if consecutive_empty_pages >= max_empty_pages:
+                        break
+                    page_num += 1
+                    continue
+
+                # find column headers so we can identify which data is in which column
+                headers = _get_column_headers(soup)
+
+                # find all the applicant rows on this page
+                rows = _get_result_rows(soup)
+
+                if not rows:
+                    logger.warning(f"Page {page_num}: no rows found in HTML")
+                    consecutive_empty_pages += 1
+                    if consecutive_empty_pages >= max_empty_pages:
+                        logger.info("No more data to scrape!")
+                        break
+                    page_num += 1
+                    continue
+
+                # reset counter since we found data
+                consecutive_empty_pages = 0
+                page_entries = []
+
+                for row in rows:
+                    # skip header rows (rows that only have th cells)
+                    if row.find("th") and not row.find("td"):
+                        continue
+
+                    entry = _parse_entry(row, headers)
+
+                    # only keep entries that have some actual data
+                    if entry.get("program") or entry.get("url"):
+                        page_entries.append(entry)
+
+                logger.info(f"Page {page_num}: extracted {len(page_entries)} entries")
+                all_entries.extend(page_entries)
+
+                page_num += 1
+
+            except Exception as e:
+                logger.error(f"Error on page {page_num}: {e}")
+                consecutive_empty_pages += 1
+                if consecutive_empty_pages >= max_empty_pages:
+                    logger.error("Too many consecutive errors, stopping.")
+                    break
+                # wait before trying next page after an error
+                time.sleep(random.uniform(8, 15))
+                page_num += 1
+                continue
+
+            # BE POLITE: wait between requests so we don't hammer the server
+            delay = random.uniform(MIN_DELAY, MAX_DELAY)
+            time.sleep(delay)
+
+    finally:
+        # always close the browser, even if something went wrong
+        driver.quit()
+        logger.info("Browser closed.")
+
+    logger.info(f"Scraping done! Total entries collected: {len(all_entries)}")
+    save_data(all_entries, output_file)
+    return all_entries
