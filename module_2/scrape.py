@@ -18,6 +18,12 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
+# beautifulsoup for actually parsing the html content
+from bs4 import BeautifulSoup
+import re
+import json
+from pathlib import Path
+
 # the base url and survey url for grad cafe
 BASE_URL = "https://www.thegradcafe.com"
 SURVEY_URL = "https://www.thegradcafe.com/survey/"
@@ -93,6 +99,25 @@ def _setup_driver():
     driver = webdriver.Chrome(options=options)
     logger.info("Chrome driver initialized (headless mode)")
     return driver
+
+
+def _take_robots_screenshot(driver):
+    """
+    Navigate to the robots.txt page and take a screenshot as evidence
+    that we checked it before scraping. Saves to screenshot.jpg.
+    """
+    try:
+        # go to the robots.txt url
+        driver.get(ROBOTS_URL)
+        # wait a moment for the page to fully load
+        time.sleep(2)
+
+        # save the screenshot in the same folder as this script
+        screenshot_path = Path(__file__).parent / "screenshot.jpg"
+        driver.save_screenshot(str(screenshot_path))
+        logger.info(f"robots.txt screenshot saved: {screenshot_path}")
+    except Exception as e:
+        logger.error(f"Could not take robots.txt screenshot: {e}")
 
 
 def _build_page_url(page_num, query=""):
