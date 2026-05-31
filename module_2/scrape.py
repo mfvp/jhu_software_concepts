@@ -612,6 +612,18 @@ def scrape_data(max_pages=900, output_file="applicant_data.json"):
                 logger.info(f"Page {page_num}: extracted {len(page_entries)} entries")
                 all_entries.extend(page_entries)
 
+                # save progress every 50 pages so we don't lose everything if something crashes
+                if page_num % 50 == 0:
+                    logger.info(f"Saving intermediate progress: {len(all_entries)} entries so far")
+                    save_data(all_entries, output_file)
+
+                # check for signs that the site is rate-limiting or blocking us
+                # HTTP 429 or captcha pages usually have specific text
+                if "rate limit" in page_text or "too many requests" in page_text or "captcha" in page_text:
+                    logger.warning("Site may be rate-limiting us. Stopping to be respectful.")
+                    save_data(all_entries, output_file)
+                    break
+
                 page_num += 1
 
             except Exception as e:
