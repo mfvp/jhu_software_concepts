@@ -720,9 +720,8 @@ if __name__ == "__main__":
         exit(1)
     print("robots.txt check passed!\n")
 
-    # resume from page 315 - we already have ~16,642 entries from the previous run
-    # change RESUME_FROM_PAGE to 1 to start fresh
-    RESUME_FROM_PAGE = 315
+    # resume from page 
+    RESUME_FROM_PAGE = 1
 
     start = time_module.time()
     if RESUME_FROM_PAGE > 1:
