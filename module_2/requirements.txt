@@ -6,7 +6,6 @@ selenium>=4.15.0
 
 # for parsing HTML after selenium loads the page
 beautifulsoup4>=4.12.0
-lxml>=4.9.0
 
 # for http requests and url handling (usually comes with Python but listing anyway)
 urllib3>=2.0.0

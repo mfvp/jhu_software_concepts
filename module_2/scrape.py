@@ -630,7 +630,7 @@ def scrape_data(max_pages=900, output_file="applicant_data.json"):
 
                 # get the fully rendered html and parse it with beautifulsoup
                 page_html = driver.page_source
-                soup = BeautifulSoup(page_html, "lxml")
+                soup = BeautifulSoup(page_html, "html.parser")
 
                 # check if the page has a "no results" or "end of data" message
                 page_text = soup.get_text().lower()
