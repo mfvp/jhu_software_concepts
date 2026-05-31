@@ -549,7 +549,7 @@ def _get_result_rows(soup):
     return []
 
 
-def scrape_data(max_pages=900, output_file="applicant_data.json"):
+def scrape_data(max_pages=900, output_file="applicant_data.json", start_page=1):
     """
     Main scraping function - pulls applicant data from Grad Cafe.
     Loops through paginated survey results pages and saves everything.
@@ -559,6 +559,7 @@ def scrape_data(max_pages=900, output_file="applicant_data.json"):
     Args:
         max_pages: max number of pages to try (safety limit)
         output_file: name of the JSON file to save data to
+        start_page: which page to start from (useful for resuming interrupted runs)
     """
     # first check that robots.txt says we can scrape
     test_url = _build_page_url(1)
@@ -570,14 +571,20 @@ def scrape_data(max_pages=900, output_file="applicant_data.json"):
 
     import time as _time_module
     _start_time = _time_module.time()
-    all_entries = []
+
+    # load any previously scraped data so we can resume without losing progress
+    all_entries = load_data(output_file) if start_page > 1 else []
+    if all_entries:
+        logger.info(f"Resuming from page {start_page} with {len(all_entries)} existing entries")
+
     driver = _setup_driver()
 
     try:
-        # step 1: take a screenshot of the robots.txt page as evidence
-        _take_robots_screenshot(driver)
+        # take a screenshot of robots.txt only on fresh runs (not resumes)
+        if start_page == 1:
+            _take_robots_screenshot(driver)
 
-        page_num = 1
+        page_num = start_page
         consecutive_empty_pages = 0
         max_empty_pages = 3  # stop after 3 pages in a row with no data
 
@@ -663,8 +670,14 @@ def scrape_data(max_pages=900, output_file="applicant_data.json"):
                     save_data(all_entries, output_file)
 
                 # check for signs that the site is rate-limiting or blocking us
-                # HTTP 429 or captcha pages usually have specific text
-                if "rate limit" in page_text or "too many requests" in page_text or "captcha" in page_text:
+                # only stop if we got zero entries AND the page has rate-limit indicators
+                # (the words can appear in normal page UI, so we need both conditions)
+                if not page_entries and (
+                    "rate limit" in page_text or
+                    "too many requests" in page_text or
+                    "access denied" in page_text or
+                    "please verify" in page_text
+                ):
                     logger.warning("Site may be rate-limiting us. Stopping to be respectful.")
                     save_data(all_entries, output_file)
                     break
@@ -707,9 +720,17 @@ if __name__ == "__main__":
         exit(1)
     print("robots.txt check passed!\n")
 
+    # resume from page 315 - we already have ~16,642 entries from the previous run
+    # change RESUME_FROM_PAGE to 1 to start fresh
+    RESUME_FROM_PAGE = 315
+
     start = time_module.time()
-    print("Starting scrape... this will take a while (there are a LOT of pages)")
-    results = scrape_data(max_pages=900, output_file="applicant_data.json")
+    if RESUME_FROM_PAGE > 1:
+        print(f"Resuming from page {RESUME_FROM_PAGE} (loading existing data first)...")
+    else:
+        print("Starting scrape... this will take a while (there are a LOT of pages)")
+
+    results = scrape_data(max_pages=900, output_file="applicant_data.json", start_page=RESUME_FROM_PAGE)
     elapsed = time_module.time() - start
     print(f"\nDone! Scraped {len(results)} entries in {elapsed/60:.1f} minutes.")
     print("Data saved to applicant_data.json")
