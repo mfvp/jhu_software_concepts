@@ -438,16 +438,38 @@ def _parse_result_id_from_url(url):
     return None
 
 
-# quick test to make sure the robots check works
-if __name__ == "__main__":
-    print("Checking if Grad Cafe survey is allowed by robots.txt...")
-    allowed = _check_robots_txt(SURVEY_URL)
-    print(f"Result: {'ALLOWED' if allowed else 'NOT ALLOWED'}")
+def _log_progress(page_num, all_entries, start_time):
+    """
+    Print a progress update with estimated completion time.
+    Helpful for long scraping runs so we know it's still working.
+    """
+    import time as time_module
+    elapsed = time_module.time() - start_time
+    rate = len(all_entries) / elapsed if elapsed > 0 else 0
+    logger.info(
+        f"Progress: page {page_num} | "
+        f"{len(all_entries)} entries total | "
+        f"{rate:.1f} entries/sec"
+    )
 
-    # test url building
-    print("\nTest URL building:")
-    for page in [1, 2, 100]:
-        print(f"  Page {page}: {_build_page_url(page)}")
+
+# run the scraper when executed directly
+if __name__ == "__main__":
+    import time as time_module
+
+    print("=== Grad Cafe Scraper ===")
+    print("Checking robots.txt first...")
+    if not _check_robots_txt(SURVEY_URL):
+        print("ERROR: robots.txt says we cannot scrape. Stopping.")
+        exit(1)
+    print("robots.txt check passed!\n")
+
+    start = time_module.time()
+    print("Starting scrape... this will take a while (there are a LOT of pages)")
+    results = scrape_data(max_pages=900, output_file="applicant_data.json")
+    elapsed = time_module.time() - start
+    print(f"\nDone! Scraped {len(results)} entries in {elapsed/60:.1f} minutes.")
+    print("Data saved to applicant_data.json")
 
 
 def save_data(data, filename="applicant_data.json"):
@@ -554,6 +576,8 @@ def scrape_data(max_pages=900, output_file="applicant_data.json"):
 
     logger.info("robots.txt check passed. Starting scrape...")
 
+    import time as _time_module
+    _start_time = _time_module.time()
     all_entries = []
     driver = _setup_driver()
 
@@ -640,9 +664,10 @@ def scrape_data(max_pages=900, output_file="applicant_data.json"):
                 logger.info(f"Page {page_num}: extracted {len(page_entries)} entries")
                 all_entries.extend(page_entries)
 
-                # save progress every 50 pages so we don't lose everything if something crashes
+                # log progress and save every 50 pages
                 if page_num % 50 == 0:
-                    logger.info(f"Saving intermediate progress: {len(all_entries)} entries so far")
+                    _log_progress(page_num, all_entries, _start_time)
+                    logger.info("Saving intermediate progress...")
                     save_data(all_entries, output_file)
 
                 # check for signs that the site is rate-limiting or blocking us
