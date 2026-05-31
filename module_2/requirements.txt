@@ -1,0 +1,15 @@
+# Python dependencies for Module 2 - Grad Cafe scraper
+# Install with: pip install -r requirements.txt
+
+# for loading JS-rendered pages in a browser
+selenium>=4.15.0
+
+# for parsing HTML after selenium loads the page
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# for http requests and url handling (usually comes with Python but listing anyway)
+urllib3>=2.0.0
+
+# image creation for the robots.txt screenshot
+Pillow>=10.0.0
