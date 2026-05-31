@@ -263,23 +263,24 @@ def _parse_entry(row_elem, col_headers=None):
     Returns a dict with all the fields we want to extract.
     """
     # start with all fields set to None so we always have consistent keys
+    # field order matches the assignment specification
     entry = {
         "program": None,           # raw original program text (keep for traceability!)
         "program_name": None,      # just the program part
         "university": None,        # just the university part
-        "degree": None,            # Masters or PhD
-        "status": None,            # Accepted/Rejected/Waitlisted/Interview/Other
-        "decision_date": None,     # date of the decision
+        "comments": None,
         "date_added": None,        # when the entry was added to grad cafe
+        "url": None,
+        "status": None,            # Accepted/Rejected/Waitlisted/Interview/Other
+        "decision_date": None,     # acceptance or rejection date
         "semester": None,          # Fall/Spring/Summer/Winter
         "year": None,              # year (e.g., 2024)
         "applicant_type": None,    # International or American
-        "gpa": None,
         "gre_total": None,
         "gre_v": None,
+        "degree": None,            # Masters or PhD
+        "gpa": None,
         "gre_aw": None,
-        "comments": None,
-        "url": None,
     }
 
     try:

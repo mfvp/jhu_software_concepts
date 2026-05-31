@@ -27,9 +27,9 @@ logger = logging.getLogger(__name__)
 
 # all the fields we expect in a clean entry
 EXPECTED_FIELDS = [
-    "program", "program_name", "university", "degree", "status",
-    "decision_date", "date_added", "semester", "year", "applicant_type",
-    "gpa", "gre_total", "gre_v", "gre_aw", "comments", "url"
+    "program", "program_name", "university", "comments", "date_added",
+    "url", "status", "decision_date", "semester", "year",
+    "applicant_type", "gre_total", "gre_v", "degree", "gpa", "gre_aw",
 ]
 
 
@@ -184,22 +184,18 @@ def _clean_entry(entry):
     Clean a single applicant entry dictionary.
     Returns a new dict with cleaned values.
     """
+    # build fields in the assignment-specified order
     c = {}
 
     # always keep the original program text! needed for reproducibility
     c["program"] = _clean_text(entry.get("program"))
-
-    # clean all the text fields
     c["program_name"] = _clean_text(entry.get("program_name"))
     c["university"] = _clean_text(entry.get("university"))
     c["comments"] = _clean_text(entry.get("comments"))
-    c["url"] = _normalize_none(entry.get("url"))
     c["date_added"] = _normalize_none(entry.get("date_added"))
-    c["decision_date"] = _normalize_none(entry.get("decision_date"))
-
-    # normalized fields
+    c["url"] = _normalize_none(entry.get("url"))
     c["status"] = _clean_status(entry.get("status"))
-    c["degree"] = _clean_degree(entry.get("degree"))
+    c["decision_date"] = _normalize_none(entry.get("decision_date"))
     c["semester"] = _normalize_none(entry.get("semester"))
 
     # year should be an integer
@@ -226,10 +222,10 @@ def _clean_entry(entry):
     else:
         c["applicant_type"] = None
 
-    # numeric scores - validated with range checks
-    c["gpa"] = _validate_gpa(entry.get("gpa"))
     c["gre_total"] = _validate_gre(entry.get("gre_total"), min_val=260, max_val=340)
     c["gre_v"] = _validate_gre(entry.get("gre_v"), min_val=130, max_val=170)
+    c["degree"] = _clean_degree(entry.get("degree"))
+    c["gpa"] = _validate_gpa(entry.get("gpa"))
     c["gre_aw"] = _validate_gre_aw(entry.get("gre_aw"))
 
     return _ensure_fields(c)
