@@ -127,11 +127,17 @@ def _validate_gre(score, min_val=130, max_val=340):
     """
     Validate a GRE score is within expected range.
     Total score: 260-340. Individual section: 130-170.
+    Also handles strings like "GRE 315" or "315/340".
     """
     if score is None:
         return None
+    # if it's a string, extract the first number from it
+    score_str = str(score)
+    num_match = re.search(r'(\d+)', score_str)
+    if not num_match:
+        return None
     try:
-        val = int(float(score))
+        val = int(num_match.group(1))
         if min_val <= val <= max_val:
             return val
     except (ValueError, TypeError):
