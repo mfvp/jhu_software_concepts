@@ -15,8 +15,10 @@ import re
 import sys
 import difflib
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 from typing import Any, Dict, List, Tuple
+
+from pathlib import Path
 
 from flask import Flask, jsonify, request
 from huggingface_hub import hf_hub_download
@@ -141,20 +143,101 @@ _LLM: Llama | None = None
 # Lock so multiple threads don't call the model at the same time (not thread-safe)
 _LLM_LOCK: threading.Lock = threading.Lock()
 
+# ------------ Multiprocessing model (one instance per worker process) ------------
+# Each worker process gets its own copy of the model so inference runs truly in parallel.
+# No lock needed here because each process is single-threaded.
+_PROC_LLM: Llama | None = None
+_THREADS_PER_WORKER: int = N_THREADS  # overridden by _worker_init
+
+
+def _worker_init(n_threads: int) -> None:
+    """Called once when each worker process starts - pre-loads the model."""
+    global _THREADS_PER_WORKER
+    _THREADS_PER_WORKER = n_threads
+    _get_proc_llm()  # warm up now so the first row isn't slow
+
+
+def _get_proc_llm() -> Llama:
+    """Load the model once per worker process and cache it as a process-local global."""
+    global _PROC_LLM
+    if _PROC_LLM is not None:
+        return _PROC_LLM
+    script_dir = Path(__file__).parent
+    candidates = [script_dir / "models" / MODEL_FILE, Path("models") / MODEL_FILE]
+    local_path = next((p for p in candidates if p.exists()), None)
+    if local_path:
+        model_path = str(local_path)
+    else:
+        model_path = hf_hub_download(
+            repo_id=MODEL_REPO,
+            filename=MODEL_FILE,
+            local_dir=str(script_dir / "models"),
+        )
+    _PROC_LLM = Llama(
+        model_path=model_path,
+        n_ctx=N_CTX,
+        n_threads=_THREADS_PER_WORKER,
+        n_gpu_layers=N_GPU_LAYERS,
+        verbose=False,
+    )
+    return _PROC_LLM
+
+
+def _process_row_mp(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Process one row using the process-local model.
+    Called in worker processes - no lock needed since each process owns its model.
+    """
+    llm = _get_proc_llm()
+    program_text = (row or {}).get("program") or ""
+
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for x_in, x_out in FEW_SHOTS:
+        messages.append({"role": "user", "content": json.dumps(x_in, ensure_ascii=False)})
+        messages.append({"role": "assistant", "content": json.dumps(x_out, ensure_ascii=False)})
+    messages.append({"role": "user", "content": json.dumps({"program": program_text}, ensure_ascii=False)})
+
+    try:
+        out = llm.create_chat_completion(messages=messages, temperature=0.0, max_tokens=128, top_p=1.0)
+        text = (out["choices"][0]["message"]["content"] or "").strip()
+        m = JSON_OBJ_RE.search(text)
+        obj = json.loads(m.group(0) if m else text)
+        std_prog = _post_normalize_program(str(obj.get("standardized_program", "")).strip())
+        std_uni = _post_normalize_university(str(obj.get("standardized_university", "")).strip())
+    except Exception:
+        std_prog, std_uni = _split_fallback(program_text)
+        std_prog = _post_normalize_program(std_prog)
+        std_uni = _post_normalize_university(std_uni)
+
+    row["llm-generated-program"] = std_prog
+    row["llm-generated-university"] = std_uni
+    return row
+
 
 def _load_llm() -> Llama:
-    """Download (or reuse) the GGUF file and initialize llama.cpp."""
+    """Load the GGUF file and initialize llama.cpp.
+    Checks local models/ folder first to avoid unnecessary HF Hub network calls.
+    """
     global _LLM
     if _LLM is not None:
         return _LLM
 
-    model_path = hf_hub_download(
-        repo_id=MODEL_REPO,
-        filename=MODEL_FILE,
-        local_dir="models",
-        local_dir_use_symlinks=False,
-        force_filename=MODEL_FILE,
-    )
+    # look next to the script first, then in the CWD models/ folder
+    script_dir = Path(__file__).parent
+    candidates = [
+        script_dir / "models" / MODEL_FILE,
+        Path("models") / MODEL_FILE,
+    ]
+    local_path = next((p for p in candidates if p.exists()), None)
+
+    if local_path:
+        model_path = str(local_path)
+    else:
+        # model not found locally - download it from HuggingFace
+        model_path = hf_hub_download(
+            repo_id=MODEL_REPO,
+            filename=MODEL_FILE,
+            local_dir=str(script_dir / "models"),
+        )
 
     _LLM = Llama(
         model_path=model_path,
@@ -333,46 +416,116 @@ def _cli_process_file(
     append: bool,
     to_stdout: bool,
     n_workers: int = 1,
+    limit: int | None = None,
+    checkpoint_path: str | None = None,
 ) -> None:
-    """Process a JSON file and write JSONL incrementally.
+    """Process a JSON file and write a JSON array output.
 
-    When n_workers > 1, rows are dispatched to a ThreadPoolExecutor so that
-    I/O and message-building overlap even though inference is serialised by
-    _LLM_LOCK. Output is written in completion order (not input order) which
-    is fine for downstream analysis but preserves all records.
+    Checkpoint/resume: if checkpoint_path is given, each completed row is
+    appended to that file immediately. On the next run, already-processed rows
+    (matched by 'url') are loaded from the checkpoint and skipped, so only
+    the remaining rows are sent to the LLM. This prevents losing hours of work
+    if the process crashes at the end.
+
+    limit: if set, only process the first N rows (useful for large datasets)
     """
     with open(in_path, "r", encoding="utf-8") as f:
         rows = _normalize_input(json.load(f))
 
-    sink = sys.stdout if to_stdout else None
-    if not to_stdout:
-        out_path = out_path or (in_path + ".jsonl")
-        mode = "a" if append else "w"
-        sink = open(out_path, mode, encoding="utf-8")
+    if limit is not None:
+        rows = rows[:limit]
 
-    assert sink is not None  # for type-checkers
-    # protect the output stream when multiple threads write concurrently
-    sink_lock = threading.Lock()
+    # --- resume from checkpoint if available ---
+    done_by_url: Dict[str, Dict[str, Any]] = {}
+    if checkpoint_path and Path(checkpoint_path).exists():
+        with open(checkpoint_path, "r", encoding="utf-8") as ck:
+            for line in ck:
+                line = line.strip()
+                if line:
+                    try:
+                        r = json.loads(line)
+                        url = r.get("url") or ""
+                        if url:
+                            done_by_url[url] = r
+                    except json.JSONDecodeError:
+                        pass
+        if done_by_url:
+            print(f"Resuming: found {len(done_by_url)} already-processed rows in checkpoint.", file=sys.stderr)
 
-    def _write(row: Dict[str, Any]) -> None:
-        with sink_lock:
-            json.dump(row, sink, ensure_ascii=False)
-            sink.write("\n")
-            sink.flush()
+    already_done = [done_by_url[r.get("url", "")] for r in rows if r.get("url", "") in done_by_url]
+    pending = [r for r in rows if r.get("url", "") not in done_by_url]
+    total = len(rows)
+    print(f"Processing {len(pending)} remaining rows ({len(already_done)} already done)...", file=sys.stderr)
+
+    # open checkpoint file for appending new results
+    ck_sink = open(checkpoint_path, "a", encoding="utf-8") if checkpoint_path else None
+
+    results: List[Dict[str, Any]] = list(already_done)
+    results_lock = threading.Lock()
+    done_count = len(already_done)
+
+    def _collect(row: Dict[str, Any]) -> None:
+        nonlocal done_count
+        with results_lock:
+            results.append(row)
+            done_count += 1
+            # save to checkpoint immediately so progress survives a crash
+            if ck_sink:
+                ck_sink.write(json.dumps(row, ensure_ascii=False) + "\n")
+                ck_sink.flush()
+            if done_count % 10 == 0 or done_count == total:
+                print(f"  {done_count}/{total} done", file=sys.stderr, flush=True)
 
     try:
-        if n_workers <= 1:
-            # simple sequential path (original behaviour)
-            for row in rows:
-                _write(_process_row(row))
+        if not pending:
+            print("Nothing left to process.", file=sys.stderr)
+        elif n_workers <= 1:
+            for row in pending:
+                _collect(_process_row(row))
         else:
-            with ThreadPoolExecutor(max_workers=n_workers) as pool:
-                futures = [pool.submit(_process_row, row) for row in rows]
+            # divide CPU threads evenly across worker processes
+            # e.g. 8 cores / 4 workers = 2 threads per model instance
+            n_threads_per_worker = max(1, (os.cpu_count() or 4) // n_workers)
+            print(
+                f"Starting {n_workers} worker processes "
+                f"({n_threads_per_worker} threads each)...",
+                file=sys.stderr,
+            )
+            # ProcessPoolExecutor gives each worker its own Python process and its own
+            # model instance - inference runs truly in parallel, no lock contention
+            with ProcessPoolExecutor(
+                max_workers=n_workers,
+                initializer=_worker_init,
+                initargs=(n_threads_per_worker,),
+            ) as pool:
+                futures = [pool.submit(_process_row_mp, row) for row in pending]
                 for fut in as_completed(futures):
-                    _write(fut.result())
+                    _collect(fut.result())
     finally:
-        if sink is not sys.stdout:
-            sink.close()
+        if ck_sink:
+            ck_sink.close()
+
+    # write final output as a proper JSON array to match assignment format
+    output = json.dumps(results, indent=2, ensure_ascii=False)
+
+    if to_stdout:
+        # write bytes directly to avoid Windows cp1252 encoding errors on Unicode chars
+        sys.stdout.buffer.write(output.encode("utf-8"))
+        sys.stdout.buffer.write(b"\n")
+        sys.stdout.buffer.flush()
+    else:
+        out_path = out_path or (in_path + ".out.json")
+        mode = "a" if append else "w"
+        with open(out_path, mode, encoding="utf-8") as f:
+            f.write(output)
+            f.write("\n")
+
+    print(f"Done! Wrote {len(results)} enriched entries.", file=sys.stderr)
+
+    # checkpoint is no longer needed once the final file is written successfully
+    if checkpoint_path and Path(checkpoint_path).exists():
+        Path(checkpoint_path).unlink()
+        print(f"Checkpoint deleted: {checkpoint_path}", file=sys.stderr)
 
 
 if __name__ == "__main__":
@@ -413,6 +566,18 @@ if __name__ == "__main__":
         default=N_WORKERS,
         help=f"Number of parallel worker threads (default: {N_WORKERS} = cpu count).",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Only process the first N rows (useful for large datasets).",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        default="llm_checkpoint.jsonl",
+        help="Path to checkpoint file for resume support (default: llm_checkpoint.jsonl). "
+             "Each completed row is saved here immediately; re-running resumes from where it left off.",
+    )
     args = parser.parse_args()
 
     if args.serve or args.file is None:
@@ -425,4 +590,6 @@ if __name__ == "__main__":
             append=bool(args.append),
             to_stdout=bool(args.stdout),
             n_workers=args.workers,
+            limit=args.limit,
+            checkpoint_path=args.checkpoint,
         )
