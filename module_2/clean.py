@@ -304,7 +304,34 @@ def run_cleaning_pipeline(input_file="applicant_data.json", output_file="applica
 
 
 if __name__ == "__main__":
+    import subprocess
+    import sys
+
     workers = os.cpu_count() or 1
     print(f"Running cleaning pipeline with {workers} worker processes...")
     result = run_cleaning_pipeline()
     print(f"Done! Cleaned {len(result)} entries.")
+
+    # after cleaning, run the LLM standardizer to add llm-generated-program
+    # and llm-generated-university fields to each entry
+    # this calls the TinyLlama model hosted in llm_hosting/app.py
+    # --workers 8 runs 8 parallel model instances for speed
+    # --limit 1000 only processes the first 1000 rows (full dataset takes many hours)
+    # the output is written to llm_extend_applicant_data.json in the same folder
+    print("\nRunning LLM standardizer (first 1000 entries)...")
+    llm_output = Path(__file__).parent / "llm_extend_applicant_data.json"
+    llm_script = Path(__file__).parent / "llm_hosting" / "app.py"
+
+    # use the same python interpreter that is running this script
+    # so we don't accidentally use the wrong python version
+    cmd = [
+        sys.executable,
+        str(llm_script),
+        "--file", "applicant_data.json",
+        "--workers", "8",
+        "--limit", "1000",
+        "--out", str(llm_output),
+    ]
+
+    print(f"Command: {' '.join(cmd)}")
+    subprocess.run(cmd, cwd=str(Path(__file__).parent), check=True)
