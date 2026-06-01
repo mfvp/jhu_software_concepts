@@ -1,0 +1,12 @@
+# LLM model files - too large for git (GitHub rejects files over 100 MB)
+*.gguf
+*.bin
+module_2/llm_hosting/models/
+module_2/models/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Checkpoint files from LLM processing
+llm_checkpoint.jsonl
