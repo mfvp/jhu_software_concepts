@@ -5,6 +5,18 @@ degree program + university names. It appends two new fields to each row:
 - `llm-generated-program`
 - `llm-generated-university`
 
+## Fixes required to get it running on Windows
+
+The original code worked on Replit but needed several fixes to run locally on Windows:
+
+- **HuggingFace deprecated arguments** — `hf_hub_download` was called with `force_filename` and `local_dir_use_symlinks`, both removed in newer versions of `huggingface_hub`. Removed both arguments.
+- **Re-downloading model on every run** — `hf_hub_download` made a network request to HuggingFace even when the model file was already on disk. Fixed `_load_llm()` to check for the file in `llm_hosting/models/` first and skip the download if it exists.
+- **Unicode encoding crash on Windows** — Writing Unicode characters (accented letters in university names) to stdout with `sys.stdout.write()` raised a `UnicodeEncodeError` because Windows defaults stdout to `cp1252`. Fixed by writing bytes directly to `sys.stdout.buffer` with explicit UTF-8 encoding.
+- **No crash recovery** — The original code held all results in memory and only wrote the output file at the very end. A crash after hours of processing lost everything. Added a `--checkpoint` file that saves each completed row immediately so the next run resumes from where it left off.
+- **Threading did not parallelize inference** — The original `ThreadPoolExecutor` approach was limited by `_LLM_LOCK`, which forced all threads to share one model sequentially. Replaced with `ProcessPoolExecutor` so each worker process gets its own model instance and inference runs truly in parallel.
+
+---
+
 ## Changes from original (Module 2 assignment)
 
 ### Expanded abbreviation map (`ABBREV_UNI` in `app.py`)

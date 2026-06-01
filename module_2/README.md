@@ -240,6 +240,16 @@ Missing or unavailable values are represented as `null`.
 
 ## LLM Cleaning: Changes and Edge Cases
 
+### Fixes required to get the original app running on Windows
+
+The provided `llm_hosting/app.py` was written for Replit and needed several fixes before it would run locally on Windows:
+
+- **HuggingFace deprecated arguments** — `hf_hub_download` was called with `force_filename` and `local_dir_use_symlinks`, both removed in newer versions of `huggingface_hub`. Removed both arguments.
+- **Re-downloading model on every run** — `hf_hub_download` made a network request on every invocation even when the GGUF file was already on disk. Fixed `_load_llm()` to check `llm_hosting/models/` first and skip the download if the file exists.
+- **Unicode encoding crash on Windows** — Writing Unicode characters (e.g., accented letters in university names) to stdout raised a `UnicodeEncodeError` because Windows defaults stdout to `cp1252`. Fixed by writing bytes directly to `sys.stdout.buffer` with explicit UTF-8 encoding.
+- **No crash recovery** — The original code held all results in memory and only wrote the output file at the very end. A crash after hours of processing lost all progress. Added a `--checkpoint` file that saves each completed row to disk immediately so the next run resumes from where it left off.
+- **Threading did not parallelize inference** — The original `ThreadPoolExecutor` approach was limited by `_LLM_LOCK`, which forced all threads to share a single model sequentially. Replaced with `ProcessPoolExecutor` so each worker process loads its own model instance and inference runs truly in parallel.
+
 ### Changes to canonical lists
 
 - No structural changes were made to `canon_universities.txt` or
