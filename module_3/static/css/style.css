@@ -1,0 +1,246 @@
+/* style.css - Grad Cafe Analysis Page Styles
+   Module 3 / JHU Software Concepts in Python
+   Keeping it clean and readable - not going overboard with design */
+
+/* ── Base reset / typography ── */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background-color: #f4f6f9;
+    color: #2c3e50;
+    line-height: 1.6;
+}
+
+/* ── Header ── */
+header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+header h1 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.subtitle {
+    font-size: 0.85rem;
+    color: #bdc3c7;
+    margin-top: 4px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn-info {
+    font-size: 0.78rem;
+    color: #bdc3c7;
+    font-style: italic;
+}
+
+/* ── Buttons ── */
+.btn {
+    padding: 9px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: #2980b9;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #1f6fa0;
+}
+
+.btn-secondary {
+    background-color: #7f8c8d;
+    color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: #636e72;
+}
+
+/* ── Banners (warnings / errors) ── */
+.banner {
+    padding: 14px 40px;
+    font-size: 0.9rem;
+}
+
+.banner-warning {
+    background-color: #ffeaa7;
+    color: #6c5200;
+    border-left: 5px solid #fdcb6e;
+}
+
+.banner-error {
+    background-color: #fde8e8;
+    color: #c0392b;
+    border-left: 5px solid #e74c3c;
+}
+
+/* ── Main content ── */
+main {
+    padding: 30px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* ── Results grid ── */
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+/* ── Cards ── */
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 22px 24px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.card.wide {
+    grid-column: span 2;
+}
+
+@media (max-width: 640px) {
+    .card.wide {
+        grid-column: span 1;
+    }
+}
+
+.card h3 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #7f8c8d;
+    margin-bottom: 10px;
+}
+
+.big-number {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #2980b9;
+    margin-bottom: 6px;
+}
+
+.card-desc {
+    font-size: 0.82rem;
+    color: #95a5a6;
+}
+
+/* placeholder cards have a slightly different style */
+.placeholder-card {
+    background: #fafafa;
+    border: 2px dashed #dfe6e9;
+    box-shadow: none;
+}
+
+.placeholder-card .big-number {
+    color: #b2bec3;
+    font-size: 1.5rem;
+}
+
+/* ── Metric row (for Q3, Q8/Q9) ── */
+.metric-row {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    margin: 14px 0 8px;
+}
+
+.metric {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.metric-label {
+    font-size: 0.78rem;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+/* ── Footer / Pull Data section ── */
+footer {
+    background-color: #ecf0f1;
+    padding: 30px 40px;
+    margin-top: 20px;
+    border-top: 1px solid #dfe6e9;
+}
+
+.pull-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.pull-text h2 {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+    color: #2c3e50;
+}
+
+.pull-text p {
+    font-size: 0.88rem;
+    color: #636e72;
+    max-width: 560px;
+}
+
+.pull-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 180px;
+}
+
+.pull-status {
+    font-size: 0.82rem;
+    color: #27ae60;
+    min-height: 18px;
+}
