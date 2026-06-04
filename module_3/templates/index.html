@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grad Cafe Data Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <h1>Grad School Cafe Data Analysis</h1>
+            {% if results.total is defined %}
+            <p class="subtitle">{{ results.total }} total entries in database</p>
+            {% endif %}
+        </div>
+    </header>
+
+    {% if error %}
+    <div class="banner banner-error">
+        <strong>Database error:</strong> {{ error }}<br>
+        Make sure PostgreSQL is running and <code>load_data.py</code> has been run first.
+    </div>
+    {% endif %}
+
+    <main>
+        <section class="results-grid">
+
+            <div class="card">
+                <h3>Q1 — Fall 2026 Entries</h3>
+                <p class="big-number">{{ results.get('q1', 'N/A') }}</p>
+                <p class="card-desc">Total entries for Fall 2026 term</p>
+            </div>
+
+            <div class="card">
+                <h3>Q2 — % International Students</h3>
+                <p class="big-number">{{ results.get('q2', 'N/A') }}%</p>
+                <p class="card-desc">Among entries with nationality data</p>
+            </div>
+
+            <div class="card wide">
+                <h3>Q3 — Average Test Scores</h3>
+                <div class="metric-row">
+                    <div class="metric">
+                        <span class="metric-label">GPA</span>
+                        <span class="metric-value">{{ results.get('q3_gpa', 'N/A') }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">GRE Quant</span>
+                        <span class="metric-value">{{ results.get('q3_gre', 'N/A') }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">GRE Verbal</span>
+                        <span class="metric-value">{{ results.get('q3_gre_v', 'N/A') }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">GRE AW</span>
+                        <span class="metric-value">{{ results.get('q3_gre_aw', 'N/A') }}</span>
+                    </div>
+                </div>
+                <p class="card-desc">Averages across all applicants who provided each metric</p>
+            </div>
+
+            <div class="card">
+                <h3>Q4 — Avg GPA (American, Fall 2026)</h3>
+                <p class="big-number">{{ results.get('q4', 'N/A') }}</p>
+                <p class="card-desc">American students applying for Fall 2026</p>
+            </div>
+
+            <div class="card">
+                <h3>Q5 — % Accepted (Fall 2026)</h3>
+                <p class="big-number">{{ results.get('q5', 'N/A') }}%</p>
+                <p class="card-desc">Acceptance rate among Fall 2026 entries</p>
+            </div>
+
+            <div class="card">
+                <h3>Q6 — Avg GPA of Accepted (Fall 2026)</h3>
+                <p class="big-number">{{ results.get('q6', 'N/A') }}</p>
+                <p class="card-desc">Average GPA of accepted Fall 2026 applicants</p>
+            </div>
+
+            <div class="card">
+                <h3>Q7 — JHU Masters CS Entries</h3>
+                <p class="big-number">{{ results.get('q7', 'N/A') }}</p>
+                <p class="card-desc">Masters in Computer Science at Johns Hopkins</p>
+            </div>
+
+            <div class="card wide">
+                <h3>Q8 &amp; Q9 — PhD CS Acceptances in 2026</h3>
+                <p class="card-desc">Georgetown, MIT, Stanford, or Carnegie Mellon — PhD Computer Science</p>
+                <div class="metric-row">
+                    <div class="metric">
+                        <span class="metric-label">Raw Fields (Q8)</span>
+                        <span class="metric-value">{{ results.get('q8', 'N/A') }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">LLM Fields (Q9)</span>
+                        <span class="metric-value">{{ results.get('q9', 'N/A') }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card wide placeholder-card">
+                <h3>Q10 — Custom Question</h3>
+                <p class="big-number">[Placeholder]</p>
+                <p class="card-desc">Custom analysis question to be determined</p>
+            </div>
+
+            <div class="card wide placeholder-card">
+                <h3>Q11 — Custom Question</h3>
+                <p class="big-number">[Placeholder]</p>
+                <p class="card-desc">Custom analysis question to be determined</p>
+            </div>
+
+        </section>
+    </main>
+
+</body>
+</html>
