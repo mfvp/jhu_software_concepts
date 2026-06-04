@@ -18,7 +18,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# same db settings as load_data.py
 DB_CONFIG = {
     "host": "localhost",
     "port": 5432,
@@ -55,7 +54,7 @@ def main():
         print(f"Q1) Entries for Fall 2026: {q1_result[0][0]}")
 
         # Q2: % international students
-        # TODO: figure out the right denominator here
+        # TODO: check if denominator should exclude nulls
         q2_sql = """
             SELECT ROUND(
                 100.0 * COUNT(CASE WHEN us_or_international = 'International' THEN 1 END)
@@ -79,6 +78,38 @@ def main():
         q3_result = run_query(conn, q3_sql)
         r = q3_result[0]
         print(f"Q3) Average scores — GPA: {r[0]}, GRE: {r[1]}, GRE V: {r[2]}, GRE AW: {r[3]}")
+
+        # Q4: Average GPA of American students in Fall 2026
+        q4_sql = """
+            SELECT ROUND(AVG(gpa)::numeric, 2) AS avg_gpa
+            FROM applicants
+            WHERE us_or_international = 'American'
+              AND term = 'Fall 2026'
+              AND gpa IS NOT NULL;
+        """
+        q4_result = run_query(conn, q4_sql)
+        print(f"Q4) Avg GPA (American, Fall 2026): {q4_result[0][0]}")
+
+        # Q5: % of Fall 2026 entries that are Acceptances
+        q5_sql = """
+            SELECT ROUND(
+                100.0 * COUNT(CASE WHEN status = 'Accepted' THEN 1 END) / NULLIF(COUNT(*), 0),
+                2
+            ) AS pct_accepted
+            FROM applicants
+            WHERE term = 'Fall 2026';
+        """
+        q5_result = run_query(conn, q5_sql)
+        print(f"Q5) % Acceptances for Fall 2026: {q5_result[0][0]}%")
+
+        # Q6: Average GPA of Fall 2026 acceptances
+        q6_sql = """
+            SELECT ROUND(AVG(gpa)::numeric, 2) AS avg_gpa
+            FROM applicants
+            WHERE term = 'Fall 2026' AND status = 'Accepted' AND gpa IS NOT NULL;
+        """
+        q6_result = run_query(conn, q6_sql)
+        print(f"Q6) Avg GPA of Fall 2026 Acceptances: {q6_result[0][0]}")
 
     finally:
         conn.close()
