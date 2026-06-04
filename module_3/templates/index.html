@@ -15,8 +15,22 @@
             <p class="subtitle">{{ results.total }} total entries in database</p>
             {% endif %}
         </div>
+        <div class="header-right">
+            <button id="updateBtn" class="btn btn-secondary" onclick="handleUpdateAnalysis()">
+                Update Analysis
+            </button>
+            <span id="updateInfo" class="btn-info">Refresh page with latest query results</span>
+        </div>
     </header>
 
+    <!-- shown when a data pull is running -->
+    {% if scraping %}
+    <div class="banner banner-warning">
+        A data pull is currently in progress. Results may update shortly.
+    </div>
+    {% endif %}
+
+    <!-- shown if there was a database error -->
     {% if error %}
     <div class="banner banner-error">
         <strong>Database error:</strong> {{ error }}<br>
@@ -115,6 +129,86 @@
 
         </section>
     </main>
+
+    <footer>
+        <div class="pull-section">
+            <div class="pull-text">
+                <h2>Pull Latest Data</h2>
+                <p>
+                    Click the button to scrape new entries from Grad Cafe and add them to the database.
+                    This runs the same scraper from Module 2 in the background — it may take several minutes.
+                </p>
+            </div>
+            <div class="pull-actions">
+                <button id="pullBtn" class="btn btn-primary" onclick="handlePullData()">
+                    Pull Data
+                </button>
+                <p id="pullStatus" class="pull-status"></p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // check scraping status on load so buttons reflect current state
+        window.addEventListener('load', checkStatus);
+
+        function checkStatus() {
+            fetch('/scraping_status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.running) {
+                        document.getElementById('pullBtn').disabled = true;
+                        document.getElementById('pullStatus').textContent =
+                            'A data pull is currently running...';
+                    }
+                })
+                .catch(() => {});
+        }
+
+        function handlePullData() {
+            const btn = document.getElementById('pullBtn');
+            const status = document.getElementById('pullStatus');
+
+            btn.disabled = true;
+            status.textContent = 'Starting data pull...';
+
+            fetch('/pull_data')
+                .then(r => r.json())
+                .then(data => {
+                    status.textContent = data.message;
+                    if (data.status === 'started') {
+                        status.style.color = '#27ae60';
+                    } else {
+                        btn.disabled = false;
+                        status.style.color = '#e74c3c';
+                    }
+                })
+                .catch(err => {
+                    status.textContent = 'Error starting pull: ' + err;
+                    btn.disabled = false;
+                });
+        }
+
+        function handleUpdateAnalysis() {
+            const info = document.getElementById('updateInfo');
+
+            fetch('/scraping_status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.running) {
+                        info.textContent =
+                            'Cannot update right now — a data pull is in progress. Please wait.';
+                        info.style.color = '#e74c3c';
+                    } else {
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {
+                    // if we can't reach the server, just reload anyway
+                    window.location.reload();
+                });
+        }
+    </script>
 
 </body>
 </html>
