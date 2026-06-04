@@ -21,13 +21,12 @@ logger = logging.getLogger(__name__)
 
 # update these settings to match your local PostgreSQL setup
 # I set mine up following the lecture slide instructions for Windows
-# (install from postgresql.org, set postgres user password, create gradcafe db)
 DB_CONFIG = {
     "host": "localhost",
     "port": 5432,
     "dbname": "gradcafe",
     "user": "postgres",
-    "password": "password"   # change this to your actual postgres password
+    "password": "password"
 }
 
 
@@ -37,12 +36,45 @@ def get_connection():
     return conn
 
 
+def create_table(conn):
+    """
+    Create the applicants table if it doesn't already exist.
+    The schema follows the assignment specification exactly.
+    Using SERIAL for p_id so PostgreSQL auto-assigns an ID to each row.
+    """
+    create_sql = """
+    CREATE TABLE IF NOT EXISTS applicants (
+        p_id                    SERIAL PRIMARY KEY,
+        program                 TEXT,
+        comments                TEXT,
+        date_added              DATE,
+        url                     TEXT UNIQUE,
+        status                  TEXT,
+        term                    TEXT,
+        us_or_international     TEXT,
+        gpa                     FLOAT,
+        gre                     FLOAT,
+        gre_v                   FLOAT,
+        gre_aw                  FLOAT,
+        degree                  TEXT,
+        llm_generated_program   TEXT,
+        llm_generated_university TEXT
+    );
+    """
+    with conn.cursor() as cur:
+        cur.execute(create_sql)
+    conn.commit()
+    logger.info("Table 'applicants' is ready")
+
+
 if __name__ == "__main__":
-    print("Testing database connection...")
+    print("Setting up database table...")
     try:
         conn = get_connection()
         print("Connected to PostgreSQL!")
+        create_table(conn)
+        print("Table created (or already exists)")
         conn.close()
     except Exception as e:
-        print(f"Connection failed: {e}")
+        print(f"Error: {e}")
         print("Make sure PostgreSQL is running and check DB_CONFIG settings")
