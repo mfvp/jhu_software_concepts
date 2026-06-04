@@ -9,9 +9,9 @@ Run:
     python load_data.py
 """
 
-# psycopg2 is the library we use to connect to PostgreSQL from Python
 import psycopg2
 import logging
+from datetime import datetime
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,8 +19,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# update these settings to match your local PostgreSQL setup
-# I set mine up following the lecture slide instructions for Windows
 DB_CONFIG = {
     "host": "localhost",
     "port": 5432,
@@ -40,7 +38,6 @@ def create_table(conn):
     """
     Create the applicants table if it doesn't already exist.
     The schema follows the assignment specification exactly.
-    Using SERIAL for p_id so PostgreSQL auto-assigns an ID to each row.
     """
     create_sql = """
     CREATE TABLE IF NOT EXISTS applicants (
@@ -67,14 +64,73 @@ def create_table(conn):
     logger.info("Table 'applicants' is ready")
 
 
+def normalize_status(status_text):
+    """
+    Grad Cafe stores statuses like 'Accepted on May 31' or 'Wait Listed on Mar 3'.
+    We just want the clean status word: Accepted, Rejected, Waitlisted, or Interview.
+    """
+    if not status_text:
+        return None
+    s = status_text.lower().strip()
+    if "accept" in s:
+        return "Accepted"
+    elif "reject" in s:
+        return "Rejected"
+    elif "waitlist" in s or "wait list" in s or "wait listed" in s:
+        return "Waitlisted"
+    elif "interview" in s:
+        return "Interview"
+    return status_text.strip()
+
+
+def parse_date(date_str):
+    """
+    Parse date strings like 'May 31, 2026' into Python date objects.
+    I needed this because PostgreSQL can't accept strings like 'May 31, 2026' directly.
+    Returns None if the string can't be parsed.
+    """
+    if not date_str:
+        return None
+
+    cleaned = str(date_str).strip()
+
+    formats = [
+        "%B %d, %Y",   # May 31, 2026
+        "%b %d, %Y",   # abbreviated month
+        "%B %d",       # no year (will use current year)
+        "%b %d",
+        "%Y-%m-%d",    # ISO format just in case
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(cleaned, fmt)
+            if dt.year == 1900:
+                dt = dt.replace(year=datetime.now().year)
+            return dt.date()
+        except ValueError:
+            continue
+
+    logger.debug(f"Could not parse date: '{date_str}'")
+    return None
+
+
+def parse_float(val):
+    """Try to convert a value to float. Returns None if it can't."""
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
+
 if __name__ == "__main__":
     print("Setting up database table...")
     try:
         conn = get_connection()
-        print("Connected to PostgreSQL!")
         create_table(conn)
-        print("Table created (or already exists)")
+        print("Table is ready!")
         conn.close()
     except Exception as e:
         print(f"Error: {e}")
-        print("Make sure PostgreSQL is running and check DB_CONFIG settings")
