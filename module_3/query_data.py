@@ -54,7 +54,7 @@ def main():
         print(f"Q1) Entries for Fall 2026: {q1_result[0][0]}")
 
         # Q2: % international students
-        # TODO: check if denominator should exclude nulls
+        # NOTE: using COUNT(*) as denominator - includes nulls - may need to fix this
         q2_sql = """
             SELECT ROUND(
                 100.0 * COUNT(CASE WHEN us_or_international = 'International' THEN 1 END)
@@ -110,6 +110,55 @@ def main():
         """
         q6_result = run_query(conn, q6_sql)
         print(f"Q6) Avg GPA of Fall 2026 Acceptances: {q6_result[0][0]}")
+
+        # Q7: Entries from JHU for a Masters in Computer Science
+        q7_sql = """
+            SELECT COUNT(*) FROM applicants
+            WHERE (
+                program ILIKE '%Johns Hopkins%'
+                OR program ILIKE '%JHU%'
+            )
+              AND program ILIKE '%Computer Science%'
+              AND degree = 'Masters';
+        """
+        q7_result = run_query(conn, q7_sql)
+        print(f"Q7) JHU Masters CS entries: {q7_result[0][0]}")
+
+        # Q8: 2026 PhD CS Acceptances at Georgetown, MIT, Stanford, CMU (raw fields)
+        q8_sql = """
+            SELECT COUNT(*) FROM applicants
+            WHERE term ILIKE '%2026%'
+              AND status = 'Accepted'
+              AND degree = 'PhD'
+              AND program ILIKE '%Computer Science%'
+              AND (
+                  program ILIKE '%Georgetown%'
+                  OR program ILIKE '%Massachusetts Institute of Technology%'
+                  OR program ILIKE '%MIT%'
+                  OR program ILIKE '%Stanford%'
+                  OR program ILIKE '%Carnegie Mellon%'
+              );
+        """
+        q8_result = run_query(conn, q8_sql)
+        print(f"Q8) 2026 PhD CS Acceptances (Georgetown/MIT/Stanford/CMU) — raw fields: {q8_result[0][0]}")
+
+        # Q9: same using LLM-generated fields
+        q9_sql = """
+            SELECT COUNT(*) FROM applicants
+            WHERE term ILIKE '%2026%'
+              AND status = 'Accepted'
+              AND degree = 'PhD'
+              AND llm_generated_program ILIKE '%Computer Science%'
+              AND (
+                  llm_generated_university ILIKE '%Georgetown%'
+                  OR llm_generated_university ILIKE '%Massachusetts Institute of Technology%'
+                  OR llm_generated_university ILIKE '%MIT%'
+                  OR llm_generated_university ILIKE '%Stanford%'
+                  OR llm_generated_university ILIKE '%Carnegie Mellon%'
+              );
+        """
+        q9_result = run_query(conn, q9_sql)
+        print(f"Q9) 2026 PhD CS Acceptances (Georgetown/MIT/Stanford/CMU) — LLM fields: {q9_result[0][0]}")
 
     finally:
         conn.close()
