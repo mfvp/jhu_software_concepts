@@ -1,0 +1,13 @@
+# Python dependencies for Module 3 - PostgreSQL + Flask Analysis
+# Install with: pip install -r requirements.txt
+
+# Flask for the web application
+flask>=3.0.0
+
+# psycopg2 for connecting to PostgreSQL (binary version is easier to install)
+psycopg2-binary>=2.9.9
+
+# for scraping grad cafe (carried over from module 2)
+selenium>=4.15.0
+beautifulsoup4>=4.12.0
+urllib3>=2.0.0
