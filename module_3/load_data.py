@@ -33,7 +33,7 @@ DB_CONFIG = {
     "port": 5432,
     "dbname": "gradcafe",
     "user": "postgres",
-    "password": "password"   # change this to your actual postgres password
+    "password": "jhumfvp"
 }
 
 # paths to data files in this module's directory

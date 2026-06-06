@@ -25,7 +25,7 @@ DB_CONFIG = {
     "port": 5432,
     "dbname": "gradcafe",
     "user": "postgres",
-    "password": "password"
+    "password": "jhumfvp"
 }
 
 
