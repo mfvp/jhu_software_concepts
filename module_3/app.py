@@ -19,20 +19,24 @@ import subprocess
 import threading
 import sys
 import logging
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent / ".env")
 
 app = Flask(__name__)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# same database settings as load_data.py and query_data.py
+# credentials come from .env - see .env.example for the required variables
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "dbname": "gradcafe",
-    "user": "postgres",
-    "password": "jhumfvp"
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": int(os.getenv("DB_PORT", 5432)),
+    "dbname": os.getenv("DB_NAME", "gradcafe"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASSWORD", "")
 }
 
 # this flag tracks whether a data pull is currently running

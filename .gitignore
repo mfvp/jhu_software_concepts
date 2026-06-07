@@ -10,3 +10,6 @@ __pycache__/
 
 # Checkpoint files from LLM processing
 llm_checkpoint.jsonl
+
+# Environment files with credentials - never commit these
+.env

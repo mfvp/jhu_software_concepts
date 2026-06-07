@@ -7,6 +7,9 @@ flask>=3.0.0
 # psycopg2 for connecting to PostgreSQL (binary version is easier to install)
 psycopg2-binary>=2.9.9
 
+# load credentials from a .env file so passwords don't get committed to git
+python-dotenv>=1.0.0
+
 # for scraping grad cafe (carried over from module 2)
 selenium>=4.15.0
 beautifulsoup4>=4.12.0

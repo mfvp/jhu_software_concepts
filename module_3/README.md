@@ -27,18 +27,26 @@ pip install -r requirements.txt
 
 ### 3. Configure the Database Connection
 
-Open `load_data.py`, `query_data.py`, and `app.py` and update the `DB_CONFIG` dictionary
-at the top of each file with your actual PostgreSQL credentials:
+Credentials are stored in a `.env` file so they never get committed to git.
 
-```python
-DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "dbname": "gradcafe",
-    "user": "postgres",
-    "password": "your_postgres_password_here"
-}
+Copy the example file and fill in your password:
+
+```bash
+copy .env.example .env
 ```
+
+Then open `.env` and set your PostgreSQL password:
+
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=gradcafe
+DB_USER=postgres
+DB_PASSWORD=your_postgres_password_here
+```
+
+> **Note:** `.env` is listed in `.gitignore` and will never be committed.
+> If you share this code, the recipient copies `.env.example` to `.env` and sets their own password.
 
 ### 4. Load Data into PostgreSQL
 

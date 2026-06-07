@@ -16,8 +16,13 @@ import json
 import re
 import sys
 import logging
+import os
 from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
+
+# load credentials from the .env file in this folder
+load_dotenv(Path(__file__).parent / ".env")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,15 +30,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# update these settings to match your local PostgreSQL setup
-# I set mine up following the lecture slide instructions for Windows
-# (install PostgreSQL, create a database named gradcafe, set postgres password)
+# credentials come from .env - see .env.example for the required variables
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "dbname": "gradcafe",
-    "user": "postgres",
-    "password": "jhumfvp"
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": int(os.getenv("DB_PORT", 5432)),
+    "dbname": os.getenv("DB_NAME", "gradcafe"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASSWORD", "")
 }
 
 # paths to data files in this module's directory
