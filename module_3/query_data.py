@@ -191,18 +191,42 @@ def main():
 
         print()
 
-        # --- Q10 (custom): [PLACEHOLDER - add your own question here] ---
-        # TODO: formulate and answer a custom question about the data
-        # Example: What is the distribution of degree types (PhD vs Masters)?
-        # q10_sql = "..."
+        # --- Q10 (custom): What are the top 10 most applied-to universities in the dataset? ---
+        # using llm_generated_university since it's cleaner than the raw program field
+        q10_sql = """
+            SELECT llm_generated_university, COUNT(*) AS entry_count
+            FROM applicants
+            WHERE llm_generated_university IS NOT NULL
+            GROUP BY llm_generated_university
+            ORDER BY entry_count DESC
+            LIMIT 10;
+        """
+        q10_result = run_query(conn, q10_sql)
+        print("Q10) Top 10 most applied-to universities:")
+        for i, (university, count) in enumerate(q10_result, 1):
+            print(f"     {i}. {university}: {count} entries")
 
-        # --- Q11 (custom): [PLACEHOLDER - add your own question here] ---
-        # TODO: formulate and answer a second custom question
-        # Example: Which universities have the most Fall 2026 accepted applicants?
-        # q11_sql = "..."
-
-        print("Q10) [Custom question — placeholder]")
-        print("Q11) [Custom question — placeholder]")
+        # --- Q11 (custom): Which 10 universities have the lowest acceptance rate? ---
+        # requiring at least 15 entries per university so the rate is meaningful
+        q11_sql = """
+            SELECT
+                llm_generated_university,
+                ROUND(
+                    100.0 * COUNT(CASE WHEN status = 'Accepted' THEN 1 END) / COUNT(*),
+                    2
+                ) AS acceptance_rate,
+                COUNT(*) AS total_entries
+            FROM applicants
+            WHERE llm_generated_university IS NOT NULL
+            GROUP BY llm_generated_university
+            HAVING COUNT(*) >= 15
+            ORDER BY acceptance_rate ASC
+            LIMIT 10;
+        """
+        q11_result = run_query(conn, q11_sql)
+        print("Q11) 10 universities with the lowest acceptance rate (min 15 entries):")
+        for i, (university, rate, total) in enumerate(q11_result, 1):
+            print(f"     {i}. {university}: {rate}% ({total} total entries)")
 
     finally:
         conn.close()

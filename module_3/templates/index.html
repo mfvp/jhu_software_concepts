@@ -77,14 +77,24 @@
             <p class="answer"><em>Answer: Count (LLM fields): {{ results.get('q9', 'N/A') }}</em></p>
         </div>
 
-        <div class="qa-block placeholder">
-            <p class="question">[Custom Question 10 — placeholder]</p>
-            <p class="answer"><em>Answer: [placeholder]</em></p>
+        <div class="qa-block">
+            <p class="question">What are the top 10 most applied-to universities in the dataset?</p>
+            <p class="answer"><em>Answer:</em></p>
+            <ol class="ranked-list">
+                {% for university, count in results.get('q10', []) %}
+                <li><em>{{ university }}: {{ count }} entries</em></li>
+                {% endfor %}
+            </ol>
         </div>
 
-        <div class="qa-block placeholder">
-            <p class="question">[Custom Question 11 — placeholder]</p>
-            <p class="answer"><em>Answer: [placeholder]</em></p>
+        <div class="qa-block">
+            <p class="question">Which 10 universities have the lowest acceptance rate (among universities with at least 15 entries)?</p>
+            <p class="answer"><em>Answer:</em></p>
+            <ol class="ranked-list">
+                {% for university, rate, total in results.get('q11', []) %}
+                <li><em>{{ university }}: {{ rate }}% acceptance rate ({{ total }} total entries)</em></li>
+                {% endfor %}
+            </ol>
         </div>
 
         <div class="pull-info">

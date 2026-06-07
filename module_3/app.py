@@ -163,6 +163,35 @@ def run_analysis():
             """)
             results["q9"] = cur.fetchone()[0]
 
+            # Q10: top 10 most applied-to universities
+            cur.execute("""
+                SELECT llm_generated_university, COUNT(*) AS entry_count
+                FROM applicants
+                WHERE llm_generated_university IS NOT NULL
+                GROUP BY llm_generated_university
+                ORDER BY entry_count DESC
+                LIMIT 10;
+            """)
+            results["q10"] = cur.fetchall()
+
+            # Q11: 10 universities with the lowest acceptance rate (min 15 entries)
+            cur.execute("""
+                SELECT
+                    llm_generated_university,
+                    ROUND(
+                        100.0 * COUNT(CASE WHEN status = 'Accepted' THEN 1 END) / COUNT(*),
+                        2
+                    ) AS acceptance_rate,
+                    COUNT(*) AS total_entries
+                FROM applicants
+                WHERE llm_generated_university IS NOT NULL
+                GROUP BY llm_generated_university
+                HAVING COUNT(*) >= 15
+                ORDER BY acceptance_rate ASC
+                LIMIT 10;
+            """)
+            results["q11"] = cur.fetchall()
+
             # total entries (shown at top of page)
             cur.execute("SELECT COUNT(*) FROM applicants;")
             results["total"] = cur.fetchone()[0]
