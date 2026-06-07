@@ -3,153 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grad Cafe Data Analysis</title>
+    <title>Grad School Cafe Data Analysis</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 
-    <header>
-        <div class="header-left">
-            <h1>Grad School Cafe Data Analysis</h1>
-            {% if results.total is defined %}
-            <p class="subtitle">{{ results.total }} total entries in database</p>
-            {% endif %}
+    <div class="top-bar">
+        <span class="site-label">Grad School Cafe Data Analysis</span>
+        <div class="top-buttons">
+            <button class="btn btn-secondary" onclick="handleUpdateAnalysis()">Update Analysis</button>
+            <button id="pullBtn" class="btn btn-primary" onclick="handlePullData()">Pull Data</button>
         </div>
-        <div class="header-right">
-            <button id="updateBtn" class="btn btn-secondary" onclick="handleUpdateAnalysis()">
-                Update Analysis
-            </button>
-            <span id="updateInfo" class="btn-info">Refresh page with latest query results</span>
-        </div>
-    </header>
+    </div>
 
-    <!-- shown when a data pull is running -->
     {% if scraping %}
     <div class="banner banner-warning">
-        A data pull is currently in progress. Results may update shortly.
+        A data pull is currently running — results will update when it finishes.
     </div>
     {% endif %}
 
-    <!-- shown if there was a database error -->
     {% if error %}
     <div class="banner banner-error">
-        <strong>Database error:</strong> {{ error }}<br>
-        Make sure PostgreSQL is running and <code>load_data.py</code> has been run first.
+        <strong>Database error:</strong> {{ error }} — make sure PostgreSQL is running and <code>load_data.py</code> has been run.
     </div>
     {% endif %}
 
-    <main>
-        <section class="results-grid">
+    <div class="page">
 
-            <div class="card">
-                <h3>Q1 — Fall 2026 Entries</h3>
-                <p class="big-number">{{ results.get('q1', 'N/A') }}</p>
-                <p class="card-desc">Total entries for Fall 2026 term</p>
-            </div>
+        <h1 class="page-title">Analysis</h1>
 
-            <div class="card">
-                <h3>Q2 — % International Students</h3>
-                <p class="big-number">{{ results.get('q2', 'N/A') }}%</p>
-                <p class="card-desc">Among entries with nationality data</p>
-            </div>
-
-            <div class="card wide">
-                <h3>Q3 — Average Test Scores</h3>
-                <div class="metric-row">
-                    <div class="metric">
-                        <span class="metric-label">GPA</span>
-                        <span class="metric-value">{{ results.get('q3_gpa', 'N/A') }}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">GRE Quant</span>
-                        <span class="metric-value">{{ results.get('q3_gre', 'N/A') }}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">GRE Verbal</span>
-                        <span class="metric-value">{{ results.get('q3_gre_v', 'N/A') }}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">GRE AW</span>
-                        <span class="metric-value">{{ results.get('q3_gre_aw', 'N/A') }}</span>
-                    </div>
-                </div>
-                <p class="card-desc">Averages across all applicants who provided each metric</p>
-            </div>
-
-            <div class="card">
-                <h3>Q4 — Avg GPA (American, Fall 2026)</h3>
-                <p class="big-number">{{ results.get('q4', 'N/A') }}</p>
-                <p class="card-desc">American students applying for Fall 2026</p>
-            </div>
-
-            <div class="card">
-                <h3>Q5 — % Accepted (Fall 2026)</h3>
-                <p class="big-number">{{ results.get('q5', 'N/A') }}%</p>
-                <p class="card-desc">Acceptance rate among Fall 2026 entries</p>
-            </div>
-
-            <div class="card">
-                <h3>Q6 — Avg GPA of Accepted (Fall 2026)</h3>
-                <p class="big-number">{{ results.get('q6', 'N/A') }}</p>
-                <p class="card-desc">Average GPA of accepted Fall 2026 applicants</p>
-            </div>
-
-            <div class="card">
-                <h3>Q7 — JHU Masters CS Entries</h3>
-                <p class="big-number">{{ results.get('q7', 'N/A') }}</p>
-                <p class="card-desc">Masters in Computer Science at Johns Hopkins</p>
-            </div>
-
-            <div class="card wide">
-                <h3>Q8 &amp; Q9 — PhD CS Acceptances in 2026</h3>
-                <p class="card-desc">Georgetown, MIT, Stanford, or Carnegie Mellon — PhD Computer Science</p>
-                <div class="metric-row">
-                    <div class="metric">
-                        <span class="metric-label">Raw Fields (Q8)</span>
-                        <span class="metric-value">{{ results.get('q8', 'N/A') }}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">LLM Fields (Q9)</span>
-                        <span class="metric-value">{{ results.get('q9', 'N/A') }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card wide placeholder-card">
-                <h3>Q10 — Custom Question</h3>
-                <p class="big-number">[Placeholder]</p>
-                <p class="card-desc">Custom analysis question to be determined</p>
-            </div>
-
-            <div class="card wide placeholder-card">
-                <h3>Q11 — Custom Question</h3>
-                <p class="big-number">[Placeholder]</p>
-                <p class="card-desc">Custom analysis question to be determined</p>
-            </div>
-
-        </section>
-    </main>
-
-    <footer>
-        <div class="pull-section">
-            <div class="pull-text">
-                <h2>Pull Latest Data</h2>
-                <p>
-                    Click the button to scrape new entries from Grad Cafe and add them to the database.
-                    This runs the same scraper from Module 2 in the background — it may take several minutes.
-                </p>
-            </div>
-            <div class="pull-actions">
-                <button id="pullBtn" class="btn btn-primary" onclick="handlePullData()">
-                    Pull Data
-                </button>
-                <p id="pullStatus" class="pull-status"></p>
-            </div>
+        <div class="qa-block">
+            <p class="question">How many entries do you have in your database who have applied for Fall 2026?</p>
+            <p class="answer"><em>Answer: Applicant count: {{ results.get('q1', 'N/A') }}</em></p>
         </div>
-    </footer>
+
+        <div class="qa-block">
+            <p class="question">What percentage of entries are from International students (not American or Other) (to two decimal places)?</p>
+            <p class="answer"><em>Answer: Percent International: {{ results.get('q2', 'N/A') }}</em></p>
+        </div>
+
+        <div class="qa-block">
+            <p class="question">What is the average GPA, GRE, GRE V, GRE AW of applicants who provided these metrics?</p>
+            <p class="answer"><em>Answer: Average GPA: {{ results.get('q3_gpa', 'N/A') }}, Average GRE: {{ results.get('q3_gre', 'N/A') }}, Average GRE V: {{ results.get('q3_gre_v', 'N/A') }}, Average GRE AW: {{ results.get('q3_gre_aw', 'N/A') }}</em></p>
+        </div>
+
+        <div class="qa-block">
+            <p class="question">What is the average GPA of American students in Fall 2026?</p>
+            <p class="answer"><em>Answer: Average GPA American: {{ results.get('q4', 'N/A') }}</em></p>
+        </div>
+
+        <div class="qa-block">
+            <p class="question">What percent of entries for Fall 2026 are Acceptances (to two decimal places)?</p>
+            <p class="answer"><em>Answer: Acceptance percent: {{ results.get('q5', 'N/A') }}</em></p>
+        </div>
+
+        <div class="qa-block">
+            <p class="question">What is the average GPA of applicants who applied for Fall 2026 who are Acceptances?</p>
+            <p class="answer"><em>Answer: Average GPA Acceptance: {{ results.get('q6', 'N/A') }}</em></p>
+        </div>
+
+        <div class="qa-block">
+            <p class="question">How many entries are from applicants who applied to JHU for a Masters degree in Computer Science?</p>
+            <p class="answer"><em>Answer: JHU Masters CS count: {{ results.get('q7', 'N/A') }}</em></p>
+        </div>
+
+        <div class="qa-block">
+            <p class="question">How many entries from 2026 are acceptances from applicants who applied to Georgetown University, MIT, Stanford University, or Carnegie Mellon University for a PhD in Computer Science?</p>
+            <p class="answer"><em>Answer: Count (raw fields): {{ results.get('q8', 'N/A') }}</em></p>
+        </div>
+
+        <div class="qa-block">
+            <p class="question">Do your numbers for question 8 change if you use LLM Generated Fields (rather than your downloaded fields)?</p>
+            <p class="answer"><em>Answer: Count (LLM fields): {{ results.get('q9', 'N/A') }}</em></p>
+        </div>
+
+        <div class="qa-block placeholder">
+            <p class="question">[Custom Question 10 — placeholder]</p>
+            <p class="answer"><em>Answer: [placeholder]</em></p>
+        </div>
+
+        <div class="qa-block placeholder">
+            <p class="question">[Custom Question 11 — placeholder]</p>
+            <p class="answer"><em>Answer: [placeholder]</em></p>
+        </div>
+
+        <div class="pull-info">
+            <p>
+                <strong>Pull Data</strong> — scrapes the latest entries from Grad Cafe and adds them to the database (runs in the background, may take several minutes).<br>
+                <strong>Update Analysis</strong> — refreshes this page with the most up-to-date query results. Does nothing if a data pull is currently running.
+            </p>
+            <p id="pullStatus" class="pull-status"></p>
+        </div>
+
+    </div>
 
     <script>
-        // check scraping status on load so buttons reflect current state
         window.addEventListener('load', checkStatus);
 
         function checkStatus() {
@@ -158,8 +106,7 @@
                 .then(data => {
                     if (data.running) {
                         document.getElementById('pullBtn').disabled = true;
-                        document.getElementById('pullStatus').textContent =
-                            'A data pull is currently running...';
+                        document.getElementById('pullStatus').textContent = 'Data pull in progress...';
                     }
                 })
                 .catch(() => {});
@@ -168,45 +115,29 @@
         function handlePullData() {
             const btn = document.getElementById('pullBtn');
             const status = document.getElementById('pullStatus');
-
             btn.disabled = true;
-            status.textContent = 'Starting data pull...';
+            status.textContent = 'Starting...';
 
             fetch('/pull_data')
                 .then(r => r.json())
-                .then(data => {
-                    status.textContent = data.message;
-                    if (data.status === 'started') {
-                        status.style.color = '#27ae60';
-                    } else {
-                        btn.disabled = false;
-                        status.style.color = '#e74c3c';
-                    }
-                })
+                .then(data => { status.textContent = data.message; })
                 .catch(err => {
-                    status.textContent = 'Error starting pull: ' + err;
+                    status.textContent = 'Error: ' + err;
                     btn.disabled = false;
                 });
         }
 
         function handleUpdateAnalysis() {
-            const info = document.getElementById('updateInfo');
-
             fetch('/scraping_status')
                 .then(r => r.json())
                 .then(data => {
                     if (data.running) {
-                        info.textContent =
-                            'Cannot update right now — a data pull is in progress. Please wait.';
-                        info.style.color = '#e74c3c';
+                        alert('Cannot update — a data pull is currently running. Please wait.');
                     } else {
                         window.location.reload();
                     }
                 })
-                .catch(() => {
-                    // if we can't reach the server, just reload anyway
-                    window.location.reload();
-                });
+                .catch(() => { window.location.reload(); });
         }
     </script>
 
