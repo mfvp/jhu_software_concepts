@@ -1,0 +1,14 @@
+# Read the Docs configuration for the Module 4 Grad Cafe docs
+version: 2
+
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.10"
+
+sphinx:
+  configuration: module_4/docs/conf.py
+
+python:
+  install:
+    - requirements: module_4/requirements.txt
