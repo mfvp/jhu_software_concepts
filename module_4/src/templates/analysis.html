@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grad Cafe Data Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <div class="top-bar">
+        <span class="site-label">Grad Cafe Data Analysis</span>
+        <div class="top-buttons">
+            <button id="update-analysis-btn"
+                    class="btn btn-secondary" onclick="updateAnalysis()">Update Analysis</button>
+            <button id="pull-data-btn"
+                    class="btn btn-primary" onclick="pullData()">Pull Data</button>
+        </div>
+    </div>
+
+    {% if busy %}
+    <div class="banner banner-warning">
+        A data pull is currently running &mdash; please wait for it to finish.
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="banner banner-error">
+        <strong>Database error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="page">
+        <h1 class="page-title">Analysis</h1>
+
+        {% if analysis %}
+        <p class="total-line">Total entries in database: {{ analysis.total }}</p>
+
+        {% for item in analysis['items'] %}
+        <div class="qa-block">
+            <p class="question">{{ item.question }}</p>
+            <p class="answer"><em>Answer: {{ item.answer }}</em></p>
+        </div>
+        {% endfor %}
+
+        <div class="qa-block">
+            <p class="question">What are the top 10 most applied-to universities?</p>
+            <p class="answer"><em>Answer:</em></p>
+            <ol class="ranked-list">
+                {% for university, count in analysis['top_universities'] %}
+                <li>{{ university }}: {{ count }} entries</li>
+                {% endfor %}
+            </ol>
+        </div>
+
+        <div class="qa-block">
+            <p class="question">Which universities have the lowest acceptance rate (min 15 entries)?</p>
+            <p class="answer"><em>Answer:</em></p>
+            <ol class="ranked-list">
+                {% for university, rate, total in analysis['lowest_acceptance'] %}
+                <li>{{ university }}: {{ "%.2f"|format(rate) }}% ({{ total }} total entries)</li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Both buttons just POST to the backend. The backend returns 409 when a
+        // pull is already running, so we let the user know instead of double-pulling.
+        function pullData() {
+            fetch('/pull-data', { method: 'POST' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.busy) {
+                        alert('A data pull is already running. Please wait.');
+                    } else {
+                        window.location.reload();
+                    }
+                });
+        }
+
+        function updateAnalysis() {
+            fetch('/update-analysis', { method: 'POST' })
+                .then(function (r) {
+                    if (r.status === 409) {
+                        alert('Cannot update while a data pull is running.');
+                    } else {
+                        window.location.reload();
+                    }
+                });
+        }
+    </script>
+
+</body>
+</html>
