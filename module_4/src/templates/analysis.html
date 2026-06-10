@@ -11,9 +11,10 @@
     <div class="top-bar">
         <span class="site-label">Grad Cafe Data Analysis</span>
         <div class="top-buttons">
-            <button id="update-analysis-btn"
+            <!-- data-testid attributes give the pytest UI tests a stable hook -->
+            <button id="update-analysis-btn" data-testid="update-analysis-btn"
                     class="btn btn-secondary" onclick="updateAnalysis()">Update Analysis</button>
-            <button id="pull-data-btn"
+            <button id="pull-data-btn" data-testid="pull-data-btn"
                     class="btn btn-primary" onclick="pullData()">Pull Data</button>
         </div>
     </div>
