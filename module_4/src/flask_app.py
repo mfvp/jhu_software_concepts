@@ -10,8 +10,11 @@ database_factory callables so tests never hit the network or a real database.
 Routes:
   GET  /                 -> same as /analysis
   GET  /analysis         -> renders the analysis page
-  POST /pull-data        -> scrape + load new rows
-  POST /update-analysis  -> refresh analysis
+  POST /pull-data        -> scrape + load new rows (gated while busy)
+  POST /update-analysis  -> refresh analysis (gated while busy)
+
+Busy state is kept in a small injectable object instead of using sleeps, so the
+busy-gating tests stay deterministic.
 """
 
 from flask import Flask, jsonify, render_template
@@ -58,7 +61,12 @@ def create_app(test_config=None, scraper=None, loader=None,
                database_factory=None, busy_state=None):
     """
     Application factory. All of the moving parts can be injected so the tests can
-    run fully offline.
+    run fully offline:
+
+    * ``scraper()``: returns a list of scraped row dicts
+    * ``loader(database, rows)``: inserts rows, returns count inserted
+    * ``database_factory()``: returns a Database
+    * ``busy_state``: a BusyState (lets a test pretend a pull is already running)
     """
     app = Flask(__name__)
     app.config["TESTING"] = False
@@ -74,7 +82,11 @@ def create_app(test_config=None, scraper=None, loader=None,
     def render_analysis():
         """Build the analysis dict and render the page from it."""
         database = database_factory()
-        analysis = get_analysis(database)
+        try:
+            analysis = get_analysis(database)
+        except Exception as exc:  # keep the page alive even if the DB is down
+            return render_template("analysis.html", analysis=None,
+                                   error=str(exc), busy=busy.is_busy())
         return render_template("analysis.html", analysis=analysis,
                                error=None, busy=busy.is_busy())
 
@@ -86,15 +98,28 @@ def create_app(test_config=None, scraper=None, loader=None,
 
     @app.route("/pull-data", methods=["POST"])
     def pull_data():
-        """Scrape + load new rows."""
-        rows = scraper()
-        database = database_factory()
-        inserted = loader(database, rows)
+        """Scrape + load new rows. Returns 409 if a pull is already running."""
+        if busy.is_busy():
+            return jsonify({"busy": True}), 409
+
+        busy.begin()
+        try:
+            rows = scraper()
+            database = database_factory()
+            inserted = loader(database, rows)
+        except Exception as exc:
+            # error path: report failure, and because the loader commits per call
+            # a failure before insert leaves no partial rows behind
+            busy.end()
+            return jsonify({"ok": False, "error": str(exc)}), 500
+        busy.end()
         return jsonify({"ok": True, "inserted": inserted}), 200
 
     @app.route("/update-analysis", methods=["POST"])
     def update_analysis():
-        """Refresh analysis."""
+        """Refresh analysis. Does nothing and returns 409 while a pull is busy."""
+        if busy.is_busy():
+            return jsonify({"busy": True}), 409
         return jsonify({"ok": True}), 200
 
     return app
