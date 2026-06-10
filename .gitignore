@@ -13,3 +13,11 @@ llm_checkpoint.jsonl
 
 # Environment files with credentials - never commit these
 .env
+
+# pytest / coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# sphinx build output (generated, don't commit)
+module_4/docs/_build/

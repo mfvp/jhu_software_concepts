@@ -1,0 +1,152 @@
+/* style.css - Grad Cafe Analysis Page
+   Module 3 / JHU Software Concepts in Python */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: #ffffff;
+    color: #111111;
+}
+
+/* ── Top bar ── */
+.top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    border-bottom: 1px solid #cccccc;
+    background: #ffffff;
+}
+
+.site-label {
+    font-family: Arial, sans-serif;
+    font-size: 0.85rem;
+    color: #555555;
+}
+
+.top-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* ── Buttons ── */
+.btn {
+    padding: 7px 16px;
+    font-size: 0.82rem;
+    font-family: Arial, sans-serif;
+    border: 1px solid #aaaaaa;
+    border-radius: 3px;
+    cursor: pointer;
+    background: #f5f5f5;
+    color: #222222;
+    transition: background 0.15s;
+}
+
+.btn:hover:not(:disabled) {
+    background: #e8e8e8;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: #2c5f8a;
+    color: #ffffff;
+    border-color: #2c5f8a;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #1f4a6e;
+}
+
+/* ── Banners ── */
+.banner {
+    padding: 10px 24px;
+    font-family: Arial, sans-serif;
+    font-size: 0.85rem;
+}
+
+.banner-warning {
+    background: #fff8e1;
+    border-left: 4px solid #f0a500;
+    color: #6b4c00;
+}
+
+.banner-error {
+    background: #fdecea;
+    border-left: 4px solid #d32f2f;
+    color: #7f0000;
+}
+
+/* ── Main page container ── */
+.page {
+    max-width: 900px;
+    margin: 32px auto;
+    padding: 0 24px 48px;
+}
+
+/* ── "Analysis" heading ── */
+.page-title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 24px;
+    font-family: Georgia, serif;
+}
+
+/* ── Q&A blocks ── */
+.qa-block {
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+}
+
+.qa-block.placeholder {
+    opacity: 0.55;
+}
+
+.question {
+    font-weight: bold;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.answer {
+    font-size: 0.9rem;
+    color: #333333;
+    line-height: 1.4;
+}
+
+/* ── Ranked list for Q10 / Q11 ── */
+.ranked-list {
+    margin: 6px 0 0 24px;
+    font-size: 0.9rem;
+    color: #333333;
+    line-height: 1.7;
+}
+
+/* ── Pull Data info / status ── */
+.pull-info {
+    margin-top: 32px;
+    font-family: Arial, sans-serif;
+    font-size: 0.82rem;
+    color: #555555;
+    line-height: 1.6;
+    border-top: 1px solid #e0e0e0;
+    padding-top: 16px;
+}
+
+.pull-status {
+    margin-top: 8px;
+    color: #2c5f8a;
+    font-style: italic;
+    min-height: 16px;
+}

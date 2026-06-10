@@ -1,0 +1,20 @@
+# Python dependencies for Module 4 - testing + docs for the Grad Cafe app
+# Install with: pip install -r requirements.txt
+
+# --- web application ---
+flask>=3.0.0
+psycopg2-binary>=2.9.9
+python-dotenv>=1.0.0
+
+# --- scraping (carried over from module 2/3) ---
+selenium>=4.15.0
+beautifulsoup4>=4.12.0
+urllib3>=2.0.0
+
+# --- testing ---
+pytest>=8.0.0
+pytest-cov>=4.1.0
+
+# --- documentation (sphinx) ---
+sphinx>=7.0.0
+sphinx-rtd-theme>=1.3.0
