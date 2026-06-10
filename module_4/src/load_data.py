@@ -82,9 +82,8 @@ def parse_float(val):
 
 def map_jsonl_entry(entry):
     """Map one record from the LLM enriched JSONL format into a row dict."""
+    # "or None" already turns empty strings into None for us
     comments = entry.get("comments") or None
-    if comments == "":
-        comments = None
     return {
         "program": entry.get("program"),
         "comments": comments,
