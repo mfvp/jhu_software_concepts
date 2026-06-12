@@ -12,7 +12,7 @@ to Read the Docs.
 The full Sphinx documentation (setup, architecture, API reference and the
 testing guide) is published on Read the Docs:
 
-**https://jhu-grad-cafe-module4.readthedocs.io/** *(replace with your own RTD link after publishing)*
+**https://mfvpjhu-software-concepts.readthedocs.io/**
 
 You can also build it locally — see [Building the docs](#building-the-docs).
 
