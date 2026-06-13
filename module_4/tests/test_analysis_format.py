@@ -150,6 +150,34 @@ def test_lowest_acceptance_rates():
 
 
 @pytest.mark.analysis
+def test_injected_query_function_is_used(fake_conn):
+    """create_app accepts a fake query function and renders whatever it returns."""
+    from db import Database
+    from flask_app import BusyState, create_app
+
+    def fake_query(database):
+        # a totally made-up analysis dict so we can prove it reached the page
+        return {
+            "total": 7,
+            "items": [{"question": "Made up?", "answer": "Injected percent: 42.00%"}],
+            "top_universities": [],
+            "lowest_acceptance": [],
+        }
+
+    app = create_app(
+        test_config={"TESTING": True},
+        scraper=lambda: [],
+        query=fake_query,
+        database_factory=lambda: Database(fake_conn),
+        busy_state=BusyState(),
+    )
+    html = app.test_client().get("/analysis").data.decode("utf-8")
+
+    assert "Total entries in database: 7" in html
+    assert "Answer: Injected percent: 42.00%" in html
+
+
+@pytest.mark.analysis
 def test_get_analysis_and_query_keys(fake_db, sample_rows):
     """get_analysis returns the expected top-level keys, query returns row dicts."""
     fake_db.insert_applicants(sample_rows)

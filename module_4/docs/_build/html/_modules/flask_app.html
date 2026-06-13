@@ -155,7 +155,7 @@
 
 <div class="viewcode-block" id="create_app">
 <a class="viewcode-back" href="../api.html#flask_app.create_app">[docs]</a>
-<span class="k">def</span> <span class="nf">create_app</span><span class="p">(</span><span class="n">test_config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scraper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="k">def</span> <span class="nf">create_app</span><span class="p">(</span><span class="n">test_config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scraper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                <span class="n">database_factory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">busy_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Application factory. All of the moving parts can be injected so the tests can</span>
@@ -163,6 +163,7 @@
 
 <span class="sd">    * ``scraper()``: returns a list of scraped row dicts</span>
 <span class="sd">    * ``loader(database, rows)``: inserts rows, returns count inserted</span>
+<span class="sd">    * ``query(database)``: returns the analysis dict for the template</span>
 <span class="sd">    * ``database_factory()``: returns a Database</span>
 <span class="sd">    * ``busy_state``: a BusyState (lets a test pretend a pull is already running)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -174,6 +175,7 @@
     <span class="c1"># fall back to the real production wiring when nothing was injected</span>
     <span class="n">scraper</span> <span class="o">=</span> <span class="n">scraper</span> <span class="ow">or</span> <span class="n">default_scraper</span>
     <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span> <span class="ow">or</span> <span class="n">default_loader</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">query</span> <span class="ow">or</span> <span class="n">get_analysis</span>
     <span class="n">database_factory</span> <span class="o">=</span> <span class="n">database_factory</span> <span class="ow">or</span> <span class="n">default_database_factory</span>
     <span class="n">busy</span> <span class="o">=</span> <span class="n">busy_state</span> <span class="ow">or</span> <span class="n">BusyState</span><span class="p">()</span>
 
@@ -181,7 +183,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the analysis dict and render the page from it.&quot;&quot;&quot;</span>
         <span class="n">database</span> <span class="o">=</span> <span class="n">database_factory</span><span class="p">()</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">analysis</span> <span class="o">=</span> <span class="n">get_analysis</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+            <span class="n">analysis</span> <span class="o">=</span> <span class="n">query</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>  <span class="c1"># keep the page alive even if the DB is down</span>
             <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;analysis.html&quot;</span><span class="p">,</span> <span class="n">analysis</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                                    <span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">busy</span><span class="o">=</span><span class="n">busy</span><span class="o">.</span><span class="n">is_busy</span><span class="p">())</span>

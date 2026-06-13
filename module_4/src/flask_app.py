@@ -57,7 +57,7 @@ def default_database_factory():  # pragma: no cover - needs a real postgres
     return Database(connect())
 
 
-def create_app(test_config=None, scraper=None, loader=None,
+def create_app(test_config=None, scraper=None, loader=None, query=None,
                database_factory=None, busy_state=None):
     """
     Application factory. All of the moving parts can be injected so the tests can
@@ -65,6 +65,7 @@ def create_app(test_config=None, scraper=None, loader=None,
 
     * ``scraper()``: returns a list of scraped row dicts
     * ``loader(database, rows)``: inserts rows, returns count inserted
+    * ``query(database)``: returns the analysis dict for the template
     * ``database_factory()``: returns a Database
     * ``busy_state``: a BusyState (lets a test pretend a pull is already running)
     """
@@ -76,6 +77,7 @@ def create_app(test_config=None, scraper=None, loader=None,
     # fall back to the real production wiring when nothing was injected
     scraper = scraper or default_scraper
     loader = loader or default_loader
+    query = query or get_analysis
     database_factory = database_factory or default_database_factory
     busy = busy_state or BusyState()
 
@@ -83,7 +85,7 @@ def create_app(test_config=None, scraper=None, loader=None,
         """Build the analysis dict and render the page from it."""
         database = database_factory()
         try:
-            analysis = get_analysis(database)
+            analysis = query(database)
         except Exception as exc:  # keep the page alive even if the DB is down
             return render_template("analysis.html", analysis=None,
                                    error=str(exc), busy=busy.is_busy())
