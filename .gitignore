@@ -19,5 +19,5 @@ llm_checkpoint.jsonl
 .coverage
 htmlcov/
 
-# sphinx build output (generated, don't commit)
-module_4/docs/_build/
+# sphinx build: commit the generated html, ignore the intermediate doctrees
+module_4/docs/_build/doctrees/

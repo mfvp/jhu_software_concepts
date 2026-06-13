@@ -1,0 +1,263 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>db &mdash; Grad Cafe Analytics 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=888ff710"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Grad Cafe Analytics
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview &amp; Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../testing.html">Testing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../operations.html">Operational Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Grad Cafe Analytics</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">db</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for db</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">db.py - Database access layer for the Grad Cafe analytics app.</span>
+<span class="sd">Module 4 / JHU Software Concepts in Python</span>
+
+<span class="sd">In module 3 the SQL was spread out across load_data.py and app.py which made it</span>
+<span class="sd">really hard to test. So for module 4 I pulled all the Postgres stuff into one</span>
+<span class="sd">small &quot;Database&quot; class. The class just wraps a DB-API connection (psycopg2 in</span>
+<span class="sd">real life) so the rest of the app never talk to psycopg2 directly. This also</span>
+<span class="sd">lets the tests pass in a fake connection instead of needing a live database.</span>
+
+<span class="sd">Connection settings come from the DATABASE_URL environment variable (the grader</span>
+<span class="sd">asked for this) so nothing is hard coded.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">import</span> <span class="nn">psycopg2</span>
+
+
+<span class="c1"># default points at a local postgres - tests/CI override this with DATABASE_URL</span>
+<span class="n">DEFAULT_DATABASE_URL</span> <span class="o">=</span> <span class="s2">&quot;postgresql://postgres:postgres@localhost:5432/gradcafe&quot;</span>
+
+<span class="c1"># the column order used everywhere when we insert / read rows.</span>
+<span class="c1"># keeping it in one list means insert and fetch can never get out of sync.</span>
+<span class="n">APPLICANT_COLUMNS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;program&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;comments&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;date_added&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;url&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;status&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;term&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;us_or_international&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;gpa&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;gre&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;gre_v&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;gre_aw&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;degree&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;llm_generated_program&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;llm_generated_university&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="c1"># the fields that must never be null for a row to count as a real applicant.</span>
+<span class="c1"># url is also the uniqueness key so a duplicate pull doesn&#39;t create dupes.</span>
+<span class="n">REQUIRED_FIELDS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;program&quot;</span><span class="p">,</span> <span class="s2">&quot;url&quot;</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">,</span> <span class="s2">&quot;term&quot;</span><span class="p">]</span>
+
+<span class="c1"># schema is exactly the module 3 schema - the assignment says not to change it</span>
+<span class="n">CREATE_TABLE_SQL</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">CREATE TABLE IF NOT EXISTS applicants (</span>
+<span class="s2">    p_id                     SERIAL PRIMARY KEY,</span>
+<span class="s2">    program                  TEXT,</span>
+<span class="s2">    comments                 TEXT,</span>
+<span class="s2">    date_added               DATE,</span>
+<span class="s2">    url                      TEXT UNIQUE,</span>
+<span class="s2">    status                   TEXT,</span>
+<span class="s2">    term                     TEXT,</span>
+<span class="s2">    us_or_international       TEXT,</span>
+<span class="s2">    gpa                      FLOAT,</span>
+<span class="s2">    gre                      FLOAT,</span>
+<span class="s2">    gre_v                    FLOAT,</span>
+<span class="s2">    gre_aw                   FLOAT,</span>
+<span class="s2">    degree                   TEXT,</span>
+<span class="s2">    llm_generated_program    TEXT,</span>
+<span class="s2">    llm_generated_university TEXT</span>
+<span class="s2">);</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="c1"># %s placeholders are psycopg2 style. ON CONFLICT(url) is our idempotency policy:</span>
+<span class="c1"># pulling the same row twice just does nothing instead of duplicating it.</span>
+<span class="n">INSERT_SQL</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">INSERT INTO applicants</span>
+<span class="s2">    (program, comments, date_added, url, status, term, us_or_international,</span>
+<span class="s2">     gpa, gre, gre_v, gre_aw, degree, llm_generated_program, llm_generated_university)</span>
+<span class="s2">VALUES (</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">)</span>
+<span class="s2">ON CONFLICT (url) DO NOTHING;</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="get_database_url">
+<a class="viewcode-back" href="../api.html#db.get_database_url">[docs]</a>
+<span class="k">def</span> <span class="nf">get_database_url</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the configured DATABASE_URL, falling back to a local default.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;DATABASE_URL&quot;</span><span class="p">,</span> <span class="n">DEFAULT_DATABASE_URL</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="connect">
+<a class="viewcode-back" href="../api.html#db.connect">[docs]</a>
+<span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="n">database_url</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>  <span class="c1"># pragma: no cover - needs a real postgres server</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Open a real psycopg2 connection. Tests inject a fake instead of calling this.&quot;&quot;&quot;</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">database_url</span> <span class="ow">or</span> <span class="n">get_database_url</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">url</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Database">
+<a class="viewcode-back" href="../api.html#db.Database">[docs]</a>
+<span class="k">class</span> <span class="nc">Database</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Thin wrapper around a DB-API connection so the app never touches psycopg2 directly.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conn</span><span class="p">):</span>
+        <span class="c1"># conn is anything that quacks like a psycopg2 connection (or our fake)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span>
+
+<div class="viewcode-block" id="Database.create_schema">
+<a class="viewcode-back" href="../api.html#db.Database.create_schema">[docs]</a>
+    <span class="k">def</span> <span class="nf">create_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create the applicants table if it isn&#39;t there yet.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">CREATE_TABLE_SQL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="Database.insert_applicants">
+<a class="viewcode-back" href="../api.html#db.Database.insert_applicants">[docs]</a>
+    <span class="k">def</span> <span class="nf">insert_applicants</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rows</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Insert a list of row dicts. Returns how many rows were actually inserted</span>
+<span class="sd">        (duplicates are skipped thanks to ON CONFLICT, so they don&#39;t get counted).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inserted</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+                <span class="n">values</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">APPLICANT_COLUMNS</span><span class="p">)</span>
+                <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">INSERT_SQL</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
+                <span class="c1"># rowcount is 1 when a row went in, 0 when ON CONFLICT skipped it</span>
+                <span class="k">if</span> <span class="n">cur</span><span class="o">.</span><span class="n">rowcount</span> <span class="ow">and</span> <span class="n">cur</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">inserted</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">inserted</span></div>
+
+
+<div class="viewcode-block" id="Database.count">
+<a class="viewcode-back" href="../api.html#db.Database.count">[docs]</a>
+    <span class="k">def</span> <span class="nf">count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the total number of rows in the applicants table.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT COUNT(*) FROM applicants;&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Database.fetch_all">
+<a class="viewcode-back" href="../api.html#db.Database.fetch_all">[docs]</a>
+    <span class="k">def</span> <span class="nf">fetch_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read every applicant back as a list of dicts keyed by APPLICANT_COLUMNS.&quot;&quot;&quot;</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">APPLICANT_COLUMNS</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT &quot;</span> <span class="o">+</span> <span class="n">columns</span> <span class="o">+</span> <span class="s2">&quot; FROM applicants;&quot;</span><span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">APPLICANT_COLUMNS</span><span class="p">,</span> <span class="n">row</span><span class="p">))</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="Database.close">
+<a class="viewcode-back" href="../api.html#db.Database.close">[docs]</a>
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Close the underlying connection.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Mateus Pereira.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

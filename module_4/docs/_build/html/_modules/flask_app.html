@@ -1,0 +1,258 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>flask_app &mdash; Grad Cafe Analytics 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=888ff710"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Grad Cafe Analytics
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview &amp; Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../testing.html">Testing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../operations.html">Operational Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Grad Cafe Analytics</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">flask_app</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for flask_app</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">flask_app.py - Flask web layer for the Grad Cafe analytics app.</span>
+<span class="sd">Module 4 / JHU Software Concepts in Python</span>
+
+<span class="sd">Module 3 used a single global Flask `app` object which is awful to test. Module 4</span>
+<span class="sd">switches to a create_app(...) factory so each test can spin up its own app with</span>
+<span class="sd">fake dependencies injected. The factory takes optional scraper / loader /</span>
+<span class="sd">database_factory callables so tests never hit the network or a real database.</span>
+
+<span class="sd">Routes:</span>
+<span class="sd">  GET  /                 -&gt; same as /analysis</span>
+<span class="sd">  GET  /analysis         -&gt; renders the analysis page</span>
+<span class="sd">  POST /pull-data        -&gt; scrape + load new rows (gated while busy)</span>
+<span class="sd">  POST /update-analysis  -&gt; refresh analysis (gated while busy)</span>
+
+<span class="sd">Busy state is kept in a small injectable object instead of using sleeps, so the</span>
+<span class="sd">busy-gating tests stay deterministic.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">jsonify</span><span class="p">,</span> <span class="n">render_template</span>
+
+<span class="kn">from</span> <span class="nn">db</span> <span class="kn">import</span> <span class="n">Database</span><span class="p">,</span> <span class="n">connect</span>
+<span class="kn">from</span> <span class="nn">load_data</span> <span class="kn">import</span> <span class="n">load_entries</span>
+<span class="kn">from</span> <span class="nn">query_data</span> <span class="kn">import</span> <span class="n">get_analysis</span>
+<span class="kn">from</span> <span class="nn">scrape</span> <span class="kn">import</span> <span class="n">scrape</span>
+
+
+<div class="viewcode-block" id="BusyState">
+<a class="viewcode-back" href="../api.html#flask_app.BusyState">[docs]</a>
+<span class="k">class</span> <span class="nc">BusyState</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tracks whether a data pull is currently running. Observable for the tests.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_busy</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="BusyState.is_busy">
+<a class="viewcode-back" href="../api.html#flask_app.BusyState.is_busy">[docs]</a>
+    <span class="k">def</span> <span class="nf">is_busy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_busy</span></div>
+
+
+<div class="viewcode-block" id="BusyState.begin">
+<a class="viewcode-back" href="../api.html#flask_app.BusyState.begin">[docs]</a>
+    <span class="k">def</span> <span class="nf">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_busy</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="BusyState.end">
+<a class="viewcode-back" href="../api.html#flask_app.BusyState.end">[docs]</a>
+    <span class="k">def</span> <span class="nf">end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_busy</span> <span class="o">=</span> <span class="kc">False</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="default_scraper">
+<a class="viewcode-back" href="../api.html#flask_app.default_scraper">[docs]</a>
+<span class="k">def</span> <span class="nf">default_scraper</span><span class="p">():</span>  <span class="c1"># pragma: no cover - real network scrape</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Production scraper: pull one page of live results from Grad Cafe.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">scrape</span><span class="p">(</span><span class="n">max_pages</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="default_loader">
+<a class="viewcode-back" href="../api.html#flask_app.default_loader">[docs]</a>
+<span class="k">def</span> <span class="nf">default_loader</span><span class="p">(</span><span class="n">database</span><span class="p">,</span> <span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Production loader: insert already-scraped rows straight into the database.&quot;&quot;&quot;</span>
+    <span class="n">database</span><span class="o">.</span><span class="n">create_schema</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">database</span><span class="o">.</span><span class="n">insert_applicants</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="default_database_factory">
+<a class="viewcode-back" href="../api.html#flask_app.default_database_factory">[docs]</a>
+<span class="k">def</span> <span class="nf">default_database_factory</span><span class="p">():</span>  <span class="c1"># pragma: no cover - needs a real postgres</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Production database: connect to postgres using DATABASE_URL.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Database</span><span class="p">(</span><span class="n">connect</span><span class="p">())</span></div>
+
+
+
+<div class="viewcode-block" id="create_app">
+<a class="viewcode-back" href="../api.html#flask_app.create_app">[docs]</a>
+<span class="k">def</span> <span class="nf">create_app</span><span class="p">(</span><span class="n">test_config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scraper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">database_factory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">busy_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Application factory. All of the moving parts can be injected so the tests can</span>
+<span class="sd">    run fully offline:</span>
+
+<span class="sd">    * ``scraper()``: returns a list of scraped row dicts</span>
+<span class="sd">    * ``loader(database, rows)``: inserts rows, returns count inserted</span>
+<span class="sd">    * ``database_factory()``: returns a Database</span>
+<span class="sd">    * ``busy_state``: a BusyState (lets a test pretend a pull is already running)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;TESTING&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">test_config</span><span class="p">:</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">test_config</span><span class="p">)</span>
+
+    <span class="c1"># fall back to the real production wiring when nothing was injected</span>
+    <span class="n">scraper</span> <span class="o">=</span> <span class="n">scraper</span> <span class="ow">or</span> <span class="n">default_scraper</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span> <span class="ow">or</span> <span class="n">default_loader</span>
+    <span class="n">database_factory</span> <span class="o">=</span> <span class="n">database_factory</span> <span class="ow">or</span> <span class="n">default_database_factory</span>
+    <span class="n">busy</span> <span class="o">=</span> <span class="n">busy_state</span> <span class="ow">or</span> <span class="n">BusyState</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">render_analysis</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the analysis dict and render the page from it.&quot;&quot;&quot;</span>
+        <span class="n">database</span> <span class="o">=</span> <span class="n">database_factory</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">analysis</span> <span class="o">=</span> <span class="n">get_analysis</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>  <span class="c1"># keep the page alive even if the DB is down</span>
+            <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;analysis.html&quot;</span><span class="p">,</span> <span class="n">analysis</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                   <span class="n">error</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">busy</span><span class="o">=</span><span class="n">busy</span><span class="o">.</span><span class="n">is_busy</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;analysis.html&quot;</span><span class="p">,</span> <span class="n">analysis</span><span class="o">=</span><span class="n">analysis</span><span class="p">,</span>
+                               <span class="n">error</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">busy</span><span class="o">=</span><span class="n">busy</span><span class="o">.</span><span class="n">is_busy</span><span class="p">())</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/analysis&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">analysis</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Render the main analysis page (status 200).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">render_analysis</span><span class="p">()</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/pull-data&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">])</span>
+    <span class="k">def</span> <span class="nf">pull_data</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scrape + load new rows. Returns 409 if a pull is already running.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">busy</span><span class="o">.</span><span class="n">is_busy</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;busy&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}),</span> <span class="mi">409</span>
+
+        <span class="n">busy</span><span class="o">.</span><span class="n">begin</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">scraper</span><span class="p">()</span>
+            <span class="n">database</span> <span class="o">=</span> <span class="n">database_factory</span><span class="p">()</span>
+            <span class="n">inserted</span> <span class="o">=</span> <span class="n">loader</span><span class="p">(</span><span class="n">database</span><span class="p">,</span> <span class="n">rows</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="c1"># error path: report failure, and because the loader commits per call</span>
+            <span class="c1"># a failure before insert leaves no partial rows behind</span>
+            <span class="n">busy</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)}),</span> <span class="mi">500</span>
+        <span class="n">busy</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;inserted&quot;</span><span class="p">:</span> <span class="n">inserted</span><span class="p">}),</span> <span class="mi">200</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/update-analysis&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">])</span>
+    <span class="k">def</span> <span class="nf">update_analysis</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Refresh analysis. Does nothing and returns 409 while a pull is busy.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">busy</span><span class="o">.</span><span class="n">is_busy</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;busy&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}),</span> <span class="mi">409</span>
+        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}),</span> <span class="mi">200</span>
+
+    <span class="k">return</span> <span class="n">app</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+    <span class="n">create_app</span><span class="p">()</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">debug</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Mateus Pereira.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

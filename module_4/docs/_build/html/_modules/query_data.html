@@ -1,0 +1,441 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>query_data &mdash; Grad Cafe Analytics 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=888ff710"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Grad Cafe Analytics
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview &amp; Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../testing.html">Testing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../operations.html">Operational Notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Grad Cafe Analytics</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">query_data</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for query_data</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">query_data.py - Analysis / summary queries for the Grad Cafe data.</span>
+<span class="sd">Module 4 / JHU Software Concepts in Python</span>
+
+<span class="sd">In module 3 every question was a separate SQL string. That worked but it was</span>
+<span class="sd">basically impossible to unit test without a full database loaded with the right</span>
+<span class="sd">data. For module 4 I changed the approach: the Database layer hands us all the</span>
+<span class="sd">rows as plain dicts, and these functions compute the answers in plain Python.</span>
+<span class="sd">That way the analysis logic can be tested with a tiny list of fake rows.</span>
+
+<span class="sd">Every percentage is formatted to exactly two decimal places (e.g. &quot;39.28%&quot;)</span>
+<span class="sd">because the assignment require it.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">db</span> <span class="kn">import</span> <span class="n">Database</span>
+
+
+<span class="c1"># the universities we care about for the &quot;top schools PhD CS&quot; question (Q8/Q9)</span>
+<span class="n">TOP_SCHOOLS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;georgetown&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;massachusetts institute of technology&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mit&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;stanford&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;carnegie mellon&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="percentage">
+<a class="viewcode-back" href="../api.html#query_data.percentage">[docs]</a>
+<span class="k">def</span> <span class="nf">percentage</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="n">whole</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return part/whole as a percentage rounded to 2 decimals (0.0 if whole is 0).&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">whole</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+    <span class="k">return</span> <span class="nb">round</span><span class="p">(</span><span class="mf">100.0</span> <span class="o">*</span> <span class="n">part</span> <span class="o">/</span> <span class="n">whole</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="format_percent">
+<a class="viewcode-back" href="../api.html#query_data.format_percent">[docs]</a>
+<span class="k">def</span> <span class="nf">format_percent</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format a number as a percent string with exactly two decimals, e.g. 39.28%.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{:.2f}</span><span class="s2">%&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="format_number">
+<a class="viewcode-back" href="../api.html#query_data.format_number">[docs]</a>
+<span class="k">def</span> <span class="nf">format_number</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Format an average/number to two decimals, or &#39;N/A&#39; when we have no data.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;N/A&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{:.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">_avg</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Average a list of numbers, skipping Nones. Returns None when nothing is left.&quot;&quot;&quot;</span>
+    <span class="n">nums</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">nums</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">nums</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">nums</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_contains</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">needle</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Case-insensitive &#39;is needle in text&#39;, safe when text is None.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">text</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="n">needle</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="count_fall_2026">
+<a class="viewcode-back" href="../api.html#query_data.count_fall_2026">[docs]</a>
+<span class="k">def</span> <span class="nf">count_fall_2026</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q1: how many entries are for the Fall 2026 term.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;term&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Fall 2026&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="percent_international">
+<a class="viewcode-back" href="../api.html#query_data.percent_international">[docs]</a>
+<span class="k">def</span> <span class="nf">percent_international</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q2: percent of International applicants out of American+International.&quot;&quot;&quot;</span>
+    <span class="n">intl</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;us_or_international&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;International&quot;</span><span class="p">)</span>
+    <span class="n">considered</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+        <span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;us_or_international&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;International&quot;</span><span class="p">,</span> <span class="s2">&quot;American&quot;</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">percentage</span><span class="p">(</span><span class="n">intl</span><span class="p">,</span> <span class="n">considered</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="average_scores">
+<a class="viewcode-back" href="../api.html#query_data.average_scores">[docs]</a>
+<span class="k">def</span> <span class="nf">average_scores</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q3: average GPA / GRE / GRE V / GRE AW across everyone who reported them.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;gpa&quot;</span><span class="p">:</span> <span class="n">_avg</span><span class="p">([</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gpa&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">]),</span>
+        <span class="s2">&quot;gre&quot;</span><span class="p">:</span> <span class="n">_avg</span><span class="p">([</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gre&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">]),</span>
+        <span class="s2">&quot;gre_v&quot;</span><span class="p">:</span> <span class="n">_avg</span><span class="p">([</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gre_v&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">]),</span>
+        <span class="s2">&quot;gre_aw&quot;</span><span class="p">:</span> <span class="n">_avg</span><span class="p">([</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gre_aw&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">]),</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="average_gpa_american_fall">
+<a class="viewcode-back" href="../api.html#query_data.average_gpa_american_fall">[docs]</a>
+<span class="k">def</span> <span class="nf">average_gpa_american_fall</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q4: average GPA of American applicants for Fall 2026.&quot;&quot;&quot;</span>
+    <span class="n">gpas</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gpa&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;us_or_international&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;American&quot;</span>
+        <span class="ow">and</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;term&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Fall 2026&quot;</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">_avg</span><span class="p">(</span><span class="n">gpas</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="percent_acceptances_fall">
+<a class="viewcode-back" href="../api.html#query_data.percent_acceptances_fall">[docs]</a>
+<span class="k">def</span> <span class="nf">percent_acceptances_fall</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q5: percent of Fall 2026 entries that were Acceptances.&quot;&quot;&quot;</span>
+    <span class="n">fall</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;term&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Fall 2026&quot;</span><span class="p">]</span>
+    <span class="n">accepted</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">fall</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Accepted&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">percentage</span><span class="p">(</span><span class="n">accepted</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">fall</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="average_gpa_accept_fall">
+<a class="viewcode-back" href="../api.html#query_data.average_gpa_accept_fall">[docs]</a>
+<span class="k">def</span> <span class="nf">average_gpa_accept_fall</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q6: average GPA of Fall 2026 acceptances.&quot;&quot;&quot;</span>
+    <span class="n">gpas</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gpa&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;term&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Fall 2026&quot;</span> <span class="ow">and</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Accepted&quot;</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">_avg</span><span class="p">(</span><span class="n">gpas</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="count_jhu_masters_cs">
+<a class="viewcode-back" href="../api.html#query_data.count_jhu_masters_cs">[docs]</a>
+<span class="k">def</span> <span class="nf">count_jhu_masters_cs</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q7: JHU Masters in Computer Science entries (using the raw program field).&quot;&quot;&quot;</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">program</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;program&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">_contains</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="s2">&quot;johns hopkins&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">_contains</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="s2">&quot;jhu&quot;</span><span class="p">))</span> \
+                <span class="ow">and</span> <span class="n">_contains</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="s2">&quot;computer science&quot;</span><span class="p">)</span> \
+                <span class="ow">and</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;degree&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Masters&quot;</span><span class="p">:</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">total</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">_top_school_phd_cs</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">university_field</span><span class="p">,</span> <span class="n">program_field</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shared helper for Q8/Q9 - counts 2026 PhD CS acceptances at the top schools.&quot;&quot;&quot;</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_contains</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;term&quot;</span><span class="p">),</span> <span class="s2">&quot;2026&quot;</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;Accepted&quot;</span> <span class="ow">or</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;degree&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;PhD&quot;</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_contains</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">program_field</span><span class="p">),</span> <span class="s2">&quot;computer science&quot;</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">_contains</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">university_field</span><span class="p">),</span> <span class="n">school</span><span class="p">)</span> <span class="k">for</span> <span class="n">school</span> <span class="ow">in</span> <span class="n">TOP_SCHOOLS</span><span class="p">):</span>
+            <span class="n">total</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">total</span>
+
+
+<div class="viewcode-block" id="count_top_school_phd_raw">
+<a class="viewcode-back" href="../api.html#query_data.count_top_school_phd_raw">[docs]</a>
+<span class="k">def</span> <span class="nf">count_top_school_phd_raw</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q8: top-school PhD CS acceptances using the raw scraped program field.&quot;&quot;&quot;</span>
+    <span class="c1"># the raw &quot;program&quot; column holds the &quot;Program, University&quot; string from grad cafe</span>
+    <span class="k">return</span> <span class="n">_top_school_phd_cs</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="s2">&quot;program&quot;</span><span class="p">,</span> <span class="s2">&quot;program&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="count_top_school_phd_llm">
+<a class="viewcode-back" href="../api.html#query_data.count_top_school_phd_llm">[docs]</a>
+<span class="k">def</span> <span class="nf">count_top_school_phd_llm</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q9: same as Q8 but using the cleaner LLM generated fields.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_top_school_phd_cs</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="s2">&quot;llm_generated_university&quot;</span><span class="p">,</span> <span class="s2">&quot;llm_generated_program&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="top_universities">
+<a class="viewcode-back" href="../api.html#query_data.top_universities">[docs]</a>
+<span class="k">def</span> <span class="nf">top_universities</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q10: the most applied-to universities (by llm_generated_university).&quot;&quot;&quot;</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">uni</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;llm_generated_university&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">uni</span><span class="p">:</span>
+            <span class="n">counts</span><span class="p">[</span><span class="n">uni</span><span class="p">]</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">uni</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">ordered</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">kv</span><span class="p">:</span> <span class="n">kv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ordered</span><span class="p">[:</span><span class="n">limit</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="lowest_acceptance_rates">
+<a class="viewcode-back" href="../api.html#query_data.lowest_acceptance_rates">[docs]</a>
+<span class="k">def</span> <span class="nf">lowest_acceptance_rates</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">min_entries</span><span class="o">=</span><span class="mi">15</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Q11: universities with the lowest acceptance rate (needs &gt;= min_entries).&quot;&quot;&quot;</span>
+    <span class="n">totals</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">accepted</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">uni</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;llm_generated_university&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">uni</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">totals</span><span class="p">[</span><span class="n">uni</span><span class="p">]</span> <span class="o">=</span> <span class="n">totals</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">uni</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;Accepted&quot;</span><span class="p">:</span>
+            <span class="n">accepted</span><span class="p">[</span><span class="n">uni</span><span class="p">]</span> <span class="o">=</span> <span class="n">accepted</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">uni</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">uni</span><span class="p">,</span> <span class="n">total</span> <span class="ow">in</span> <span class="n">totals</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">total</span> <span class="o">&gt;=</span> <span class="n">min_entries</span><span class="p">:</span>
+            <span class="n">rate</span> <span class="o">=</span> <span class="n">percentage</span><span class="p">(</span><span class="n">accepted</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">uni</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">total</span><span class="p">)</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">uni</span><span class="p">,</span> <span class="n">rate</span><span class="p">,</span> <span class="n">total</span><span class="p">))</span>
+
+    <span class="c1"># sort by acceptance rate ascending so the hardest schools come first</span>
+    <span class="n">results</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">results</span><span class="p">[:</span><span class="n">limit</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="build_analysis">
+<a class="viewcode-back" href="../api.html#query_data.build_analysis">[docs]</a>
+<span class="k">def</span> <span class="nf">build_analysis</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Turn the raw rows into the list of question/answer items the template renders.</span>
+<span class="sd">    Each item is a dict with a &#39;question&#39; and an already-formatted &#39;answer&#39; string.</span>
+<span class="sd">    Percentages are pre-formatted to two decimals here.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">average_scores</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+
+    <span class="n">items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;How many entries are for Fall 2026?&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="s2">&quot;Applicant count: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">count_fall_2026</span><span class="p">(</span><span class="n">rows</span><span class="p">)),</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;What percent of entries are from International students?&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="s2">&quot;Percent International: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">format_percent</span><span class="p">(</span><span class="n">percent_international</span><span class="p">(</span><span class="n">rows</span><span class="p">))</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;Average GPA, GRE, GRE V, GRE AW of applicants who provided them?&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="s2">&quot;Average GPA: </span><span class="si">{}</span><span class="s2">, GRE: </span><span class="si">{}</span><span class="s2">, GRE V: </span><span class="si">{}</span><span class="s2">, GRE AW: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">format_number</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="s2">&quot;gpa&quot;</span><span class="p">]),</span>
+                <span class="n">format_number</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="s2">&quot;gre&quot;</span><span class="p">]),</span>
+                <span class="n">format_number</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="s2">&quot;gre_v&quot;</span><span class="p">]),</span>
+                <span class="n">format_number</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="s2">&quot;gre_aw&quot;</span><span class="p">]),</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;Average GPA of American students in Fall 2026?&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="s2">&quot;Average GPA American: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">format_number</span><span class="p">(</span><span class="n">average_gpa_american_fall</span><span class="p">(</span><span class="n">rows</span><span class="p">))</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;What percent of Fall 2026 entries are Acceptances?&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="s2">&quot;Acceptance percent: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">format_percent</span><span class="p">(</span><span class="n">percent_acceptances_fall</span><span class="p">(</span><span class="n">rows</span><span class="p">))</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;Average GPA of Fall 2026 Acceptances?&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="s2">&quot;Average GPA Acceptance: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">format_number</span><span class="p">(</span><span class="n">average_gpa_accept_fall</span><span class="p">(</span><span class="n">rows</span><span class="p">))</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;How many JHU Masters in Computer Science entries are there?&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="s2">&quot;JHU Masters CS count: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">count_jhu_masters_cs</span><span class="p">(</span><span class="n">rows</span><span class="p">)),</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;2026 PhD CS acceptances at top schools (raw fields)?&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="s2">&quot;Count (raw fields): </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">count_top_school_phd_raw</span><span class="p">(</span><span class="n">rows</span><span class="p">)),</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;Does Q8 change when using the LLM generated fields?&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;answer&quot;</span><span class="p">:</span> <span class="s2">&quot;Count (LLM fields): </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">count_top_school_phd_llm</span><span class="p">(</span><span class="n">rows</span><span class="p">)),</span>
+        <span class="p">},</span>
+    <span class="p">]</span>
+    <span class="k">return</span> <span class="n">items</span></div>
+
+
+
+<div class="viewcode-block" id="get_analysis">
+<a class="viewcode-back" href="../api.html#query_data.get_analysis">[docs]</a>
+<span class="k">def</span> <span class="nf">get_analysis</span><span class="p">(</span><span class="n">database</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Top level entry point used by the Flask app: read every row from the database</span>
+<span class="sd">    and return a dict the template can render. &#39;items&#39; is the labeled Q&amp;A list,</span>
+<span class="sd">    &#39;top_universities&#39; and &#39;lowest_acceptance&#39; back the two ranked lists.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">database</span><span class="o">.</span><span class="n">fetch_all</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;total&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">rows</span><span class="p">),</span>
+        <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="n">build_analysis</span><span class="p">(</span><span class="n">rows</span><span class="p">),</span>
+        <span class="s2">&quot;top_universities&quot;</span><span class="p">:</span> <span class="n">top_universities</span><span class="p">(</span><span class="n">rows</span><span class="p">),</span>
+        <span class="s2">&quot;lowest_acceptance&quot;</span><span class="p">:</span> <span class="n">lowest_acceptance_rates</span><span class="p">(</span><span class="n">rows</span><span class="p">),</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="query_applicants">
+<a class="viewcode-back" href="../api.html#query_data.query_applicants">[docs]</a>
+<span class="k">def</span> <span class="nf">query_applicants</span><span class="p">(</span><span class="n">database</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Simple query helper: return the applicant rows as dicts. Each dict has the</span>
+<span class="sd">    Module-3 required keys, which is what the analysis template relies on.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">database</span><span class="o">.</span><span class="n">fetch_all</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../api.html#query_data.main">[docs]</a>
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>  <span class="c1"># pragma: no cover - convenience CLI, not used by the tests</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Print the analysis to the console (handy when running locally).&quot;&quot;&quot;</span>
+    <span class="n">database</span> <span class="o">=</span> <span class="n">Database</span><span class="p">(</span><span class="nb">__import__</span><span class="p">(</span><span class="s2">&quot;db&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">connect</span><span class="p">())</span>
+    <span class="n">analysis</span> <span class="o">=</span> <span class="n">get_analysis</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Total entries:&quot;</span><span class="p">,</span> <span class="n">analysis</span><span class="p">[</span><span class="s2">&quot;total&quot;</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">analysis</span><span class="p">[</span><span class="s2">&quot;items&quot;</span><span class="p">]:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;question&quot;</span><span class="p">])</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Answer:&quot;</span><span class="p">,</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;answer&quot;</span><span class="p">])</span>
+    <span class="n">database</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Mateus Pereira.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

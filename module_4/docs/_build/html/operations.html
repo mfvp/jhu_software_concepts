@@ -1,0 +1,159 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operational Notes &mdash; Grad Cafe Analytics 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Testing Guide" href="testing.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Grad Cafe Analytics
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview &amp; Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Operational Notes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#busy-state-policy">Busy-state policy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#idempotency-uniqueness">Idempotency &amp; uniqueness</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Grad Cafe Analytics</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Operational Notes</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/operations.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="operational-notes">
+<h1>Operational Notes<a class="headerlink" href="#operational-notes" title="Link to this heading"></a></h1>
+<section id="busy-state-policy">
+<h2>Busy-state policy<a class="headerlink" href="#busy-state-policy" title="Link to this heading"></a></h2>
+<p>Only one data pull should run at a time. While a pull is in progress:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/pull-data</span></code> returns <code class="docutils literal notranslate"><span class="pre">409</span></code> with <code class="docutils literal notranslate"><span class="pre">{&quot;busy&quot;:</span> <span class="pre">true}</span></code> and does <strong>not</strong>
+start a second pull.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/update-analysis</span></code> returns <code class="docutils literal notranslate"><span class="pre">409</span></code> with <code class="docutils literal notranslate"><span class="pre">{&quot;busy&quot;:</span> <span class="pre">true}</span></code> and does
+<strong>not</strong> recompute.</p></li>
+</ul>
+<p>The busy flag is held in a <a class="reference internal" href="api.html#flask_app.BusyState" title="flask_app.BusyState"><code class="xref py py-class docutils literal notranslate"><span class="pre">flask_app.BusyState</span></code></a> object. It is set before
+the scrape/load starts and cleared in every exit path (including errors), so a
+failed pull can’t leave the app stuck “busy”.</p>
+</section>
+<section id="idempotency-uniqueness">
+<h2>Idempotency &amp; uniqueness<a class="headerlink" href="#idempotency-uniqueness" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">url</span></code> column is the uniqueness key. Inserts use
+<code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">CONFLICT</span> <span class="pre">(url)</span> <span class="pre">DO</span> <span class="pre">NOTHING</span></code>, so:</p>
+<ul class="simple">
+<li><p>re-running a pull over data you already have inserts nothing new, and</p></li>
+<li><p>a pull that overlaps a previous one only adds the genuinely new rows.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Database.insert_applicants</span></code> returns the count of rows that were <em>actually</em>
+inserted (duplicates are not counted).</p>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt><strong>``could not connect to server`` / connection refused</strong></dt><dd><p>Postgres isn’t running or <code class="docutils literal notranslate"><span class="pre">DATABASE_URL</span></code> is wrong. Check the host, port,
+user, password, and that the <code class="docutils literal notranslate"><span class="pre">gradcafe</span></code> database exists.</p>
+</dd>
+<dt><strong>Tests can’t import ``db`` / ``flask_app``</strong></dt><dd><p>Run pytest from the repository root. <code class="docutils literal notranslate"><span class="pre">tests/conftest.py</span></code> adds
+<code class="docutils literal notranslate"><span class="pre">module_4/src</span></code> to <code class="docutils literal notranslate"><span class="pre">sys.path</span></code> automatically, but the working directory
+still matters for the <code class="docutils literal notranslate"><span class="pre">--cov=module_4/src</span></code> path.</p>
+</dd>
+<dt><strong>Coverage is below 100%</strong></dt><dd><p>The build is configured to fail under 100%. Run
+<code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">module_4/tests</span></code> and read the <code class="docutils literal notranslate"><span class="pre">term-missing</span></code> column to see which
+lines aren’t covered.</p>
+</dd>
+<dt><strong>GitHub Actions: db tests fail in CI</strong></dt><dd><p>Confirm the <code class="docutils literal notranslate"><span class="pre">postgres</span></code> service is healthy and that the <code class="docutils literal notranslate"><span class="pre">DATABASE_URL</span></code>
+env var in <code class="docutils literal notranslate"><span class="pre">tests.yml</span></code> matches the service credentials.</p>
+</dd>
+</dl>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="testing.html" class="btn btn-neutral float-left" title="Testing Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Mateus Pereira.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
